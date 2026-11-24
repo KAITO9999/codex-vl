@@ -44,7 +44,7 @@ impl ChatWidget {
     /// both the agent turn lifecycle and MCP startup lifecycle.
     pub(super) fn update_task_running_state(&mut self) {
         self.bottom_pane.set_task_running(
-            self.turn_lifecycle.agent_turn_running
+            self.turn_lifecycle.is_running_or_admitted()
                 || self.review.is_review_mode
                 || self.mcp_startup_status.is_some(),
         );
@@ -159,27 +159,13 @@ impl ChatWidget {
         });
         // For desktop notifications: prefer the notification payload, fall back to
         // the item-level copy source if present, otherwise send an empty string.
+        let committed = self.transcript.committed_turn_response.take();
         let notification_response = sanitized_last_agent_message
             .as_ref()
             .filter(|message| !message.is_empty())
             .cloned()
-            .or_else(|| {
-                if self.transcript.saw_copy_source_this_turn {
-                    self.transcript.last_agent_markdown.clone()
-                } else {
-                    None
-                }
-            })
+            .or_else(|| committed.map(|(_, text)| text))
             .unwrap_or_default();
-        // Memory V2 Step 3 / P0.1: compute the summary once, BEFORE the
-        // `saw_copy_source_this_turn` reset below, and reuse it for both
-        // the desktop notification payload and the Vivling turn capsule.
-        let copy_source_summary = compute_vivling_turn_summary(
-            sanitized_last_agent_message.as_deref(),
-            self.transcript.last_agent_markdown.as_deref(),
-            self.transcript.saw_copy_source_this_turn,
-        );
-        self.transcript.saw_copy_source_this_turn = false;
         // If a stream is currently active, finalize it.
         self.flush_answer_and_plan_streams();
         self.flush_interrupt_activity();
@@ -352,6 +338,12 @@ impl ChatWidget {
         }
 
         None
+    }
+
+    pub(crate) fn has_unsent_input(&self) -> bool {
+        !self.composer_is_empty()
+            || self.pending_image_submission.is_some()
+            || self.has_queued_follow_up_messages()
     }
 
     pub(crate) fn has_queued_follow_up_messages(&self) -> bool {

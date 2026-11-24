@@ -16,7 +16,7 @@ The GitHub Release also contains a [DotSlash](https://dotslash-cli.com/) file fo
 
 ```bash
 # Clone the repository and navigate to the root of the Cargo workspace.
-git clone https://github.com/DioNanos/codex-vl.git
+git clone --branch sync/openai-rust-v0.172.0 https://github.com/KAITO9999/codex-vl.git
 cd codex-vl/codex-rs
 
 # Install the Rust toolchain, if necessary.

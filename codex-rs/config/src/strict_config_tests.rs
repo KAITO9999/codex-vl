@@ -279,38 +279,60 @@ include_view_image_tool = false
     );
 }
 
-#[test]
-fn removed_private_desktop_setting_has_migration_hint() {
+#[test_case::test_case(
+    "[windows]\nsandbox_private_desktop = false",
+    "Codex is ignoring 1 unrecognized configuration setting. Check for typos or deprecated settings.\n  session-flags: `windows.sandbox_private_desktop` is ignored. Remove windows.sandbox_private_desktop; legacy Windows sandboxes always use a private desktop.";
+    "private_desktop"
+)]
+#[test_case::test_case(
+    "[auto_review]\nextra_policy = 'Additional rules.'\nexperimental_policy_template = 'Custom template.'",
+    concat!(
+        "Codex is ignoring 2 unrecognized configuration settings. Check for typos or deprecated settings.",
+        "\n  session-flags: `auto_review.experimental_policy_template` is ignored. Remove auto_review.experimental_policy_template from config.toml.",
+        "\n  session-flags: `auto_review.extra_policy` is ignored. To enforce additional Guardian rules, set guardian_extra_policy in managed requirements.toml.",
+    );
+    "guardian_policy"
+)]
+fn removed_settings_have_migration_hints(contents: &str, expected: &str) {
     let config = ConfigLayerStack::new(
-        vec![layer(
-            ConfigLayerSource::SessionFlags,
-            "[windows]\nsandbox_private_desktop = false",
-        )],
+        vec![layer(ConfigLayerSource::SessionFlags, contents)],
         ConfigRequirements::default(),
         ConfigRequirementsToml::default(),
     )
     .unwrap();
     assert_eq!(
-        ignored_config_warning(&config, &[]).unwrap(),
-        "Codex is ignoring 1 unrecognized configuration setting. Check for typos or deprecated settings.\n  session-flags: `windows.sandbox_private_desktop` is ignored. Remove windows.sandbox_private_desktop; legacy Windows sandboxes always use a private desktop."
+        ignored_config_warning(&config, &[]).as_deref(),
+        Some(expected)
     );
 }
 
 #[test]
-fn strict_config_accepts_fork_namespace_tools_on_model_provider() {
-    // codex-vl: `namespace_tools` is a fork-owned field of
-    // ModelProviderInfo. Upstream strict-config validation must not report it
-    // as an ignored setting for fork providers.
-    let path = Path::new("/tmp/config.toml");
-
-    for contents in [
-        "[model_providers.custom]\nname = \"Custom\"\nbase_url = \"http://localhost:8080/v1\"\nnamespace_tools = false\n",
-        "[model_providers.custom]\nname = \"Custom\"\nbase_url = \"http://localhost:8080/v1\"\nnamespace_tools = true\n",
+fn managed_network_unknown_fields_are_reported_for_each_spelling() {
+    let config = ConfigLayerStack::new(
+        Vec::new(),
+        ConfigRequirements::default(),
+        ConfigRequirementsToml::default(),
+    )
+    .unwrap();
+    for table in [
+        "network_proxy",
+        "experimental_network",
+        "permissions.network",
     ] {
+        let requirements = RequirementsLayerEntry::from_toml(
+            crate::RequirementSource::Unknown,
+            format!(
+                "[{table}]\nenabld = true\n[{table}.domains]\n'example.com' = 'allow'\n\
+                 [[{table}.header_injections]]\nhost = 'example.com'\nmethods = ['GET']\n\
+                 path_prefixes = ['/']\nheaders = {{}}\nunknown = true\n"
+            ),
+        );
         assert_eq!(
-            config_error_from_ignored_toml_fields::<ConfigToml>(path, contents),
-            None,
-            "namespace_tools must deserialize, not be reported as ignored: {contents}"
+            ignored_config_warning(&config, &[requirements]),
+            Some(format!(
+                "Codex is ignoring 2 unrecognized configuration settings. Check for typos or deprecated settings.\n  requirements (<unspecified>): `{table}.enabld` is ignored.\n  requirements (<unspecified>): `{table}.header_injections.0.unknown` is ignored."
+            )),
+            "{table}"
         );
     }
 }

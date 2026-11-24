@@ -15,10 +15,12 @@ use crate::environment_selection::validate_environment_ids_and_cwds;
 use crate::exec_policy::AllowPrefixRules;
 use codex_features::Feature;
 use codex_prompts::ResolvedModelMessages;
+use codex_protocol::openai_models::CatalogModel;
 use codex_protocol::openai_models::GuardianV2ModelConfig;
 use codex_protocol::openai_models::GuardianV2TranscriptModelConfig;
 use codex_protocol::openai_models::MODEL_SPECIALTY_CYBER;
 use codex_protocol::openai_models::ModelInfo;
+use codex_protocol::openai_models::ModelOrigin;
 use codex_protocol::protocol::EnvironmentConfigState;
 use codex_protocol::protocol::TurnEnvironmentSelection;
 use codex_protocol::protocol::TurnSettingsUpdate;
@@ -87,16 +89,16 @@ fn check_legacy_turn_safety(
 /// Model-owned portion of the temporary legacy-turn safety check. Ordinary
 /// model metadata may differ so diagnostics can expose unmigrated consumers.
 fn check_legacy_model_safety(
-    admitted: &ModelInfo,
-    current: &ModelInfo,
-    destination: &ModelInfo,
+    admitted: &CatalogModel,
+    current: &CatalogModel,
+    destination: &CatalogModel,
     admitted_config: &Config,
     live_config: &Config,
 ) -> Result<(), String> {
-    if admitted.used_fallback_model_metadata || current.used_fallback_model_metadata {
+    if admitted.origin == ModelOrigin::Synthetic || current.origin == ModelOrigin::Synthetic {
         return Err("the active model has only fallback metadata".to_string());
     }
-    if destination.used_fallback_model_metadata {
+    if destination.origin == ModelOrigin::Synthetic {
         return Err("the destination model has only fallback metadata".to_string());
     }
     let retained_models = [admitted, current];
@@ -184,20 +186,8 @@ fn check_legacy_model_safety(
     if destination.auto_review_model_override.is_none() {
         let destination_model_messages = ResolvedModelMessages::from_model(destination);
         let destination_auto_review = destination_model_messages.auto_review();
-        // codex-vl: the parent-fallback policy source stays fail-closed. Every
-        // compared model (destination and retained) is validated before the
-        // policy comparison, so an oversized catalog message refuses the model
-        // switch instead of flowing into the Guardian prompt.
-        GuardianNodeReplPolicy::from_messages(&destination.slug, destination_model_messages)
-            .map_err(|error| error.to_string())?;
-        for model in retained_models {
-            GuardianNodeReplPolicy::from_messages(
-                &model.slug,
-                ResolvedModelMessages::from_model(model),
-            )
-            .map_err(|error| error.to_string())?;
-        }
-        let retained_model_messages = retained_models.map(ResolvedModelMessages::from_model);
+        let retained_model_messages =
+            retained_models.map(|model| ResolvedModelMessages::from_model(model));
         let retained_auto_review = retained_model_messages
             .each_ref()
             .map(ResolvedModelMessages::auto_review);
@@ -252,7 +242,9 @@ impl Session {
             || update.summary.is_some()
             || update.service_tier.is_some();
         let requires_model_switching = updates_model_settings
-            || (update.approvals_reviewer.is_none() && update.environments.is_none());
+            || (update.approvals_reviewer.is_none()
+                && update.environments.is_none()
+                && update.request_country.is_none());
         if requires_model_switching && !self.features.enabled(Feature::StepModelSwitching) {
             return TurnSettingsUpdateOutcome::Rejected {
                 reason: "turn settings updates require the step_model_switching feature"
@@ -280,7 +272,22 @@ impl Session {
         let Some((turn_context, task_done, current)) = target else {
             return TurnSettingsUpdateOutcome::TargetUnavailable;
         };
+        if update
+            .model
+            .as_ref()
+            .is_some_and(|model| *model != current.model_info.slug)
+            && turn_context
+                .extension_data
+                .get::<crate::agent::helper_daybreak::SavedIntent>()
+                .is_some()
+        {
+            return TurnSettingsUpdateOutcome::Rejected {
+                reason: "Change the model on the next turn when using a saved Daybreak choice"
+                    .to_string(),
+            };
+        }
         let TurnSettingsUpdate {
+            request_country,
             approvals_reviewer,
             environments: environment_requests,
             model,
@@ -296,8 +303,10 @@ impl Session {
                 })
                 .collect::<Vec<_>>()
         });
-        let updates_step_settings = updates_model_settings || approvals_reviewer.is_some();
+        let updates_step_settings =
+            updates_model_settings || approvals_reviewer.is_some() || request_country.is_some();
         let update = StepSettingsUpdate {
+            request_country,
             approvals_reviewer,
             model,
             effort,
@@ -426,7 +435,7 @@ impl Session {
                 environments,
             ),
         };
-        current
+        let settings = current
             .apply_update(
                 update,
                 &constraints,
@@ -435,7 +444,23 @@ impl Session {
                 &self.features,
             )
             .await
-            .map_err(|error| error.to_string())
+            .map_err(|error| error.to_string())?;
+        // Changes to the selected model or reviewer must also satisfy the
+        // policy that continues to apply to this turn's MCP actions.
+        if update.approvals_reviewer.is_some() || update.model.is_some() {
+            let requirements = turn_context.config.config_layer_stack.requirements();
+            requirements
+                .approvals_reviewer
+                .can_set(&settings.approvals_reviewer())
+                .and_then(|()| {
+                    settings.selected().validate(&StepSettingsConstraints {
+                        requirements,
+                        ..constraints
+                    })
+                })
+                .map_err(|error| error.to_string())?;
+        }
+        Ok(settings)
     }
 
     /// Rechecks ordinary managed authorization after asynchronous resolution.

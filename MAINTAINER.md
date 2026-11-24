@@ -1,10 +1,13 @@
 # Maintainer
 
+> **Downstream fork:** this repository is `KAITO9999/codex-vl`, maintained by KAITO9999. The original Codex VL project and its upstream maintainer remain attributed to DioNanos; upstream contact details below are not contacts for this downstream fork. See [`FORK.md`](./FORK.md).
+
 Codex VL is maintained by **Davide A. Guglielmi** (GitHub: [DioNanos](https://github.com/DioNanos)).
 
 Codex VL is a fork of [OpenAI Codex](https://github.com/openai/codex) that adds
 the Vivling companion system, the `/loop` workflow layer, and side-by-side npm
-packaging under `@mmmbuto/codex-vl`. The fork is upstream-first: rebases against
+packaging. The inherited `@mmmbuto/codex-vl` scope is upstream-owned and cannot
+be published by this downstream fork. The fork is upstream-first: rebases against
 `openai/codex` are routine and the VL layer is intentionally narrow.
 
 ## Scope of maintenance
@@ -12,8 +15,8 @@ packaging under `@mmmbuto/codex-vl`. The fork is upstream-first: rebases against
 In scope:
 
 - the VL workflow layer (`/vivling`, `/vl`, `/loop`, `/goal`)
-- the `@mmmbuto/codex-vl` npm packages (Linux x86_64-musl, Android arm64-musl,
-  macOS arm64 source-build)
+- the inherited `@mmmbuto/codex-vl` package layout for local compatibility;
+  public publishing is blocked until this fork moves to an owned npm scope
 - integration points kept maintainable for routine upstream merges
 - documentation in [`docs/`](./docs) and the dev journal at
   [dev.mmmbuto.com](https://dev.mmmbuto.com)
@@ -28,7 +31,7 @@ Out of scope here:
 
 | Channel              | Where                                                     |
 | -------------------- | --------------------------------------------------------- |
-| Issues, PRs, ideas   | [DioNanos/codex-vl](https://github.com/DioNanos/codex-vl) |
+| Issues, PRs, ideas   | [KAITO9999/codex-vl](https://github.com/KAITO9999/codex-vl) |
 | Security disclosures | [`SECURITY.md`](./SECURITY.md) — `security@mmmbuto.com`   |
 | General contact      | `dev@mmmbuto.com`                                         |
 
@@ -38,11 +41,10 @@ reproduction.
 
 ## Release flow
 
-1. Work lands on `develop`.
-2. Validated npm packages are published to the `latest` channel under
-   `@mmmbuto/codex-vl`.
-3. Tested commits are promoted to clean GitHub `main`.
-4. GitHub Releases are cut from `main`.
+1. Work lands on the fork's development branch and passes fork CI.
+2. A GitHub Release is cut from `KAITO9999/codex-vl` after validation.
+3. npm publication remains disabled until the inherited `@mmmbuto` scope
+   is replaced with a namespace owned by this fork.
 
 `main` push to GitHub is gated and only happens after explicit approval.
 

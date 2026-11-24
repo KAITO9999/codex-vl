@@ -10,6 +10,9 @@ jobs:
   # Keep reusable workflow calls alphabetized. Each child retains its own
   # workflow_dispatch trigger so maintainers can rerun flaky suites directly.
   rust-ci-full:
+    permissions:
+      contents: read
+      id-token: write
     name: rust-ci-full
     permissions:
       contents: read
@@ -18,6 +21,9 @@ jobs:
     secrets: inherit
 
   v8-canary:
+    permissions:
+      contents: read
+      id-token: write
     name: v8-canary
     # v8-canary.yml looks up earlier runs of itself, so its build job asks for
     # `actions: read`. A nested workflow can never hold more than its caller,

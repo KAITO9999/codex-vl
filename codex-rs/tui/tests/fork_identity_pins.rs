@@ -24,9 +24,9 @@
 fn fork_identity_pin_tui_updates_latest_release_url() {
     const SOURCE: &str = include_str!("../src/updates.rs");
     assert!(
-        SOURCE.contains("api.github.com/repos/DioNanos/codex-vl/releases/latest"),
+        SOURCE.contains("api.github.com/repos/KAITO9999/codex-vl/releases/latest"),
         "tui/src/updates.rs::LATEST_RELEASE_URL must point at the fork \
-         release feed (DioNanos/codex-vl).",
+         release feed (KAITO9999/codex-vl).",
     );
     assert!(
         !SOURCE.contains("api.github.com/repos/openai/codex/releases/latest"),
@@ -37,15 +37,15 @@ fn fork_identity_pin_tui_updates_latest_release_url() {
 
 /// Pin: the `install_native_deps.py` build script keeps a fork-safe
 /// default repo so that, even when the workflow URL cannot be parsed,
-/// the fallback resolves to `DioNanos/codex-vl` instead of silently
+/// the fallback resolves to `KAITO9999/codex-vl` instead of silently
 /// pointing back at the upstream parent.
 #[test]
 fn fork_identity_install_native_deps_fork_default_repo() {
     const SOURCE: &str = include_str!("../../../codex-cli/scripts/install_native_deps.py");
     assert!(
-        SOURCE.contains("DEFAULT_GITHUB_REPO = \"DioNanos/codex-vl\""),
+        SOURCE.contains("DEFAULT_GITHUB_REPO = \"KAITO9999/codex-vl\""),
         "install_native_deps.py must declare DEFAULT_GITHUB_REPO = \
-         \"DioNanos/codex-vl\" so the fork-safe fallback is explicit.",
+         \"KAITO9999/codex-vl\" so the fork-safe fallback is explicit.",
     );
     assert!(
         SOURCE.contains("repo = DEFAULT_GITHUB_REPO"),
@@ -107,7 +107,7 @@ fn fork_identity_public_install_surfaces_are_fork_owned() {
             "{path} must not suggest uninstalling or managing @openai/codex.",
         );
         assert!(
-            source.contains("DioNanos/codex-vl"),
+            source.contains("KAITO9999/codex-vl"),
             "{path} must reference the Codex VL fork repository.",
         );
         assert!(
@@ -121,7 +121,7 @@ fn fork_identity_public_install_surfaces_are_fork_owned() {
         "docs/install.md must not tell users to clone upstream openai/codex.",
     );
     assert!(
-        DOCS_INSTALL.contains("github.com/DioNanos/codex-vl.git"),
+        DOCS_INSTALL.contains("github.com/KAITO9999/codex-vl.git"),
         "docs/install.md must tell users to clone the Codex VL fork.",
     );
 }

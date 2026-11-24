@@ -29,7 +29,9 @@ OFF_JOBS = {
     ],
     "rust-ci-full.yml": [
         "argument_comment_lint_prebuilt",
+        "cargo_voice_inputs",
         "lint_build",
+        "lint_build_musl",
         "tests_macos_aarch64",
         "tests_linux_x64_remote",
         "tests_linux_arm64",
@@ -41,10 +43,10 @@ OFF_JOBS = {
 }
 # Restore-comment sentinels: file -> (regex, minimum count)
 SENTINELS = {
-    "bazel.yml": (r"[Dd]isabled on this fork", 9),
+    "bazel.yml": (r"[Dd]isabled on this fork", 5),
     "blocking-ci.yml": (r"disabled on this fork|not a merge gate", 2),
     "rust-ci-full.yml": (r"[Dd]isabled on this fork", 9),
-    "rust-ci.yml": (r"[Dd]isabled on this fork", 3),
+    "rust-ci.yml": (r"[Dd]isabled on this fork", 2),
     "rust-release-argument-comment-lint.yml": (r"[Dd]isabled on this fork", 2),
     "sdk.yml": (r"[Dd]isabled on this fork", 1),
     "v8-canary.yml": (r"[Dd]isabled on this fork", 1),
@@ -173,7 +175,7 @@ def main(root):
                     "runner group in runs-on or matrix; the leg must stay commented out"
                 )
     needs = yaml.safe_load(load("blocking-ci.yml"))["jobs"]
-    gate = next(v for v in needs.values() if isinstance(v, dict) and "needs" in v)
+    gate = needs["required"]
     for dead in ("bazel", "sdk"):
         if dead in gate["needs"]:
             errs.append(

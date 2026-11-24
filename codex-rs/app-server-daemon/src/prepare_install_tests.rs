@@ -797,6 +797,8 @@ async fn broken_selection_is_not_a_missing_installation() {
                 .as_ref()
         )
     );
+    let start_error = daemon.start(&BTreeMap::new()).await.unwrap_err();
+    assert_eq!(start_error.failure_reason(), "install");
     assert_eq!(
         std::fs::read_link(current).unwrap(),
         PathBuf::from("missing-release")

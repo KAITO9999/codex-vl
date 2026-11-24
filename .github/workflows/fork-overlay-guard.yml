@@ -13,7 +13,7 @@ permissions:
 jobs:
   guard:
     name: fork CI overlay is intact
-    if: github.repository == 'DioNanos/codex-vl'
+    if: github.repository == 'KAITO9999/codex-vl'
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout

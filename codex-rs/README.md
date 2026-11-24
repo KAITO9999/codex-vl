@@ -5,6 +5,8 @@ zero-dependency install.
 
 ## Installing Codex VL
 
+> The npm command below still installs the published upstream `@mmmbuto/codex-vl` package. This fork's `0.172.0-vl.1` source target has not been published to npm yet; see [`FORK.md`](../FORK.md).
+
 Today, the easiest way to install Codex VL is via `npm`:
 
 ```shell
@@ -13,7 +15,7 @@ codex-vl
 ```
 
 You can also download platform-specific fork packages directly from the
-[Codex VL GitHub Releases](https://github.com/DioNanos/codex-vl/releases).
+[Codex VL GitHub Releases](https://github.com/KAITO9999/codex-vl/releases).
 
 ## Documentation quickstart
 

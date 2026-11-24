@@ -4,9 +4,9 @@ expression: rendered
 ---
 ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │ ✨ Update available! 0.166.0 -> 9.9.9                                                                      │
-│ Run sh -c 's=$(curl -fsSL https://github.com/DioNanos/codex-vl/releases/latest/download/install.sh) &&     │
+│ Run sh -c 's=$(curl -fsSL https://github.com/KAITO9999/codex-vl/releases/latest/download/install.sh) &&     │
 │ CODEX_NON_INTERACTIVE=1 eval "$s"' to update.                                                              │
 │                                                                                                            │
 │ See full release notes:                                                                                    │
-│ https://github.com/DioNanos/codex-vl/releases/latest                                                       │
+│ https://github.com/KAITO9999/codex-vl/releases/latest                                                       │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

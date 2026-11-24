@@ -34,7 +34,7 @@ const MAX_VERSION_RESPONSE_BYTES: usize = 1024 * 1024;
 
 const VERSION_FILE_NAME: &str = "version.json";
 const GITHUB_LATEST_RELEASE_URL: &str =
-    "https://api.github.com/repos/DioNanos/codex-vl/releases/latest";
+    "https://api.github.com/repos/KAITO9999/codex-vl/releases/latest";
 const HOMEBREW_CASK_API_URL: &str = "https://formulae.brew.sh/api/cask/codex.json";
 #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
 const DESKTOP_UPDATE_URL: &str = "https://persistent.oaistatic.com/codex-app-prod/appcast-x64.xml";
@@ -728,9 +728,9 @@ mod tests {
     fn fork_identity_pin_doctor_updates_github_release_url() {
         let upstream_repo: &str = concat!("openai", "/", "codex");
         assert!(
-            GITHUB_LATEST_RELEASE_URL.contains("DioNanos/codex-vl"),
+            GITHUB_LATEST_RELEASE_URL.contains("KAITO9999/codex-vl"),
             "GITHUB_LATEST_RELEASE_URL must point at the fork repo \
-             (DioNanos/codex-vl). Was: {GITHUB_LATEST_RELEASE_URL}",
+             (KAITO9999/codex-vl). Was: {GITHUB_LATEST_RELEASE_URL}",
         );
         assert!(
             !GITHUB_LATEST_RELEASE_URL.contains(upstream_repo),

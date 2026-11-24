@@ -39,7 +39,7 @@ impl HistoryCell for UpdateAvailableHistoryCell {
         } else {
             line![
                 "See ",
-                "https://github.com/DioNanos/codex-vl".cyan().underlined(),
+                "https://github.com/KAITO9999/codex-vl".cyan().underlined(),
                 " for installation options."
             ]
         };
@@ -54,7 +54,7 @@ impl HistoryCell for UpdateAvailableHistoryCell {
             update_instruction,
             "",
             "See full release notes:",
-            "https://github.com/DioNanos/codex-vl/releases/latest"
+            "https://github.com/KAITO9999/codex-vl/releases/latest"
                 .cyan()
                 .underlined(),
         ];
@@ -71,7 +71,7 @@ impl HistoryCell for UpdateAvailableHistoryCell {
         let update_instruction = if let Some(update_action) = self.update_action {
             format!("Run {} to update.", update_action.command_str())
         } else {
-            "See https://github.com/DioNanos/codex-vl for installation options.".to_string()
+            "See https://github.com/KAITO9999/codex-vl for installation options.".to_string()
         };
         vec![
             Line::from("Update available!"),
@@ -79,7 +79,7 @@ impl HistoryCell for UpdateAvailableHistoryCell {
             Line::from(update_instruction),
             Line::from(""),
             Line::from("See full release notes:"),
-            Line::from("https://github.com/DioNanos/codex-vl/releases/latest"),
+            Line::from("https://github.com/KAITO9999/codex-vl/releases/latest"),
         ]
     }
 
@@ -106,7 +106,7 @@ pub(crate) fn new_warning_event(message: String) -> WarningHistoryCell {
     }
 }
 
-pub(crate) fn new_usage_warning_event(message: String) -> WarningHistoryCell {
+pub(crate) fn new_visible_warning_event(message: String) -> WarningHistoryCell {
     WarningHistoryCell {
         visible_in_transcript: true,
         ..new_warning_event(message)
@@ -176,7 +176,7 @@ pub(crate) fn new_cyber_policy_error_event(
                 ("Learn more", SAFETY_ACCESS_BLOCK_LEARN_MORE_URL),
                 (
                     "Apply for Daybreak",
-                    "https://openai.com/form/enterprise-trusted-access-for-cyber/",
+                    "https://chatgpt.com/admin/status-and-access",
                 ),
             ],
         ),
@@ -186,7 +186,10 @@ pub(crate) fn new_cyber_policy_error_event(
         ),
         Notice::Astra => (
             "Daybreak isn’t available for Astra. Some cybersecurity requests may still be limited.",
-            &[("Learn more", SAFETY_ACCESS_BLOCK_LEARN_MORE_URL)],
+            &[(
+                "Learn more",
+                "https://help.openai.com/en/articles/20001258-openai-daybreak-trusted-access-for-cyber-overview#reduced-refusals-behavior-by-model",
+            )],
         ),
         Notice::Enabled => (
             "Some cybersecurity requests are still limited, even when Daybreak is on.",
@@ -337,6 +340,22 @@ pub(crate) fn new_info_event(message: String, hint: Option<String>) -> PlainHist
     }
     let lines: Vec<Line<'static>> = vec![line.into()];
     PlainHistoryCell { lines }
+}
+
+#[derive(Debug)]
+pub(crate) struct InterruptionNotice(pub(crate) Option<String>);
+
+impl HistoryCell for InterruptionNotice {
+    fn display_lines(&self, _width: u16) -> Vec<Line<'static>> {
+        vec![
+            Line::from("■ Conversation interrupted - use /feedback if something went wrong")
+                .style(crate::style::secondary_text_style()),
+        ]
+    }
+
+    fn raw_lines(&self) -> Vec<Line<'static>> {
+        plain_lines(self.display_lines(/*width*/ u16::MAX))
+    }
 }
 
 pub(crate) fn new_error_event(message: String) -> PlainHistoryCell {

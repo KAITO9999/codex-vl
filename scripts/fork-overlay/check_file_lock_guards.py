@@ -81,6 +81,9 @@ ALLOWED_UNGUARDED: dict[tuple[str, str, str], str] = {
     ("login/src/oauth_session_storage.rs", "file", "try_lock"): (
         "pre-existing since 0.165; audit A.3.4"
     ),
+    ("login/src/auth/storage_commit.rs", "file", "try_lock"): (
+        "credential storage commit serialization: fail-closed; unsupported locking aborts the write"
+    ),
     ("rollout/src/maintenance.rs", "file", "try_lock"): (
         "pre-existing since 0.165; audit A.3.4"
     ),

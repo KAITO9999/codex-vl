@@ -1,8 +1,5 @@
 codex-rs/app-server-protocol/schema/** linguist-generated
 codex-rs/hooks/schema/generated/** linguist-generated
-
-# ASCII art experiment outputs (PIL/ASCII converters); padding-significant.
-docs/assets/vivling/cards/ascii_experiments/**/generated/** linguist-generated -whitespace
-docs/assets/vivling/cards/ascii_experiments/**/raw/** linguist-generated -whitespace
+codex-rs/skills/src/assets/samples/create-statusline/references/statusline.d.ts linguist-generated
 third_party/voice/sources.json text eol=lf
 patches/v8_array_sort_elements_kind.patch text eol=lf

@@ -172,7 +172,7 @@ fi
 
 printf "Group A10 (npm packaging identity and musl ripgrep): "
 if grep -q '"name": "@mmmbuto/codex-vl"' codex-cli/package.json \
-  && grep -q 'DioNanos/codex-vl' codex-cli/package.json \
+  && grep -q 'KAITO9999/codex-vl' codex-cli/package.json \
   && [ -f codex-cli/scripts/build_npm_package.py ] \
   && [ -f scripts/stage_npm_packages.py ] \
   && grep -q 'mmmbuto%2fcodex-vl' codex-rs/tui/src/npm_registry.rs \
@@ -267,7 +267,10 @@ printf "Area B5 (VL UI boundaries and the background client seam): "
 if [ -f codex-rs/tui/tests/manager_dependency_regression.rs ] \
   && grep -Eq 'AuthManager|build_background_model_client' \
     codex-rs/tui/tests/manager_dependency_regression.rs \
-  && grep -q 'fn build_background_model_client' codex-rs/core/src/thread_manager.rs \
+  && grep -q 'pub async fn build_background_model_client' \
+    codex-rs/core/src/thread_manager/background_model_client.rs \
+  && grep -q 'pub use background_model_client::build_background_model_client' \
+    codex-rs/core/src/thread_manager.rs \
   && [ "$(count_in 'build_background_model_client' \
       codex-rs/tui/src/app/vivling_background.rs)" -ge 3 ] \
   && ! grep -rq 'AuthManager' codex-rs/tui/src \
@@ -290,7 +293,7 @@ fi
 printf "Area B7 (fork identity on public surfaces): "
 if grep -q '"name": "@mmmbuto/codex-vl"' codex-cli/package.json \
   && grep -q '@mmmbuto/codex-vl@' README.md \
-  && grep -q 'DioNanos/codex-vl' scripts/install/install.sh \
+  && grep -q 'KAITO9999/codex-vl' scripts/install/install.sh \
   && ! grep -q '@openai/codex' README.md \
   && ! grep -q '@openai/codex' codex-cli/package.json \
   && ! grep -q '@openai/codex' package.json; then

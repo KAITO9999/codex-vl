@@ -127,6 +127,7 @@ use codex_app_server_protocol::MockExperimentalMethodParams;
 use codex_app_server_protocol::MockExperimentalMethodResponse;
 use codex_app_server_protocol::ModelListParams;
 use codex_app_server_protocol::ModelListResponse;
+use codex_app_server_protocol::ModelProviderError;
 use codex_app_server_protocol::PermissionProfileListParams;
 use codex_app_server_protocol::PermissionProfileListResponse;
 use codex_app_server_protocol::PermissionProfileSummary;
@@ -177,7 +178,6 @@ use codex_app_server_protocol::SandboxMode;
 use codex_app_server_protocol::SendAddCreditsNudgeEmailParams;
 use codex_app_server_protocol::SendAddCreditsNudgeEmailResponse;
 use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequestResolvedNotification;
 use codex_app_server_protocol::SkillSummary;
 use codex_app_server_protocol::SkillsConfigWriteParams;
 use codex_app_server_protocol::SkillsConfigWriteResponse;
@@ -391,7 +391,6 @@ use codex_core_plugins::remote::RemotePluginCatalogError;
 use codex_core_plugins::remote::RemotePluginDetail as RemoteCatalogPluginDetail;
 use codex_core_plugins::remote::RemotePluginServiceConfig;
 use codex_core_plugins::remote::RemotePluginShareContext as RemoteCatalogPluginShareContext;
-use codex_core_plugins::remote::RemotePluginShareSummary as RemoteCatalogPluginShareSummary;
 use codex_core_plugins::remote::RemotePluginSummary as RemoteCatalogPluginSummary;
 use codex_exec_server::EnvironmentManager;
 use codex_exec_server::EnvironmentObservedStatus;
@@ -463,6 +462,7 @@ use codex_protocol::protocol::SessionConfiguredEvent;
 use codex_protocol::protocol::SessionMetaLine;
 use codex_protocol::protocol::TurnEnvironmentRequest;
 use codex_protocol::protocol::W3cTraceContext;
+#[cfg(test)]
 use codex_protocol::protocol::strip_user_message_prefix;
 use codex_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
 use codex_protocol::user_input::UserInput as CoreInputItem;
@@ -517,7 +517,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 use tokio::sync::Mutex;
-use tokio::sync::Semaphore;
 use tokio::sync::SemaphorePermit;
 use tokio::sync::broadcast;
 use tokio::sync::oneshot;
@@ -526,6 +525,8 @@ use tokio_util::sync::CancellationToken;
 use tokio_util::sync::DropGuard;
 use tokio_util::task::TaskTracker;
 use toml::Value as TomlValue;
+
+use self::thread_list_state::ThreadListState;
 use tracing::Instrument;
 use tracing::error;
 use tracing::info;
@@ -568,6 +569,7 @@ mod thread_attachments;
 mod thread_enrichment;
 mod thread_fork_goal;
 mod thread_input;
+pub(crate) mod thread_list_state;
 mod thread_memory;
 mod thread_processor;
 mod thread_queue_processor;
@@ -600,6 +602,7 @@ pub(crate) use search::SearchRequestProcessor;
 pub(crate) use thread_goal_processor::ThreadGoalRequestProcessor;
 pub(crate) use thread_processor::ThreadRequestProcessor;
 pub(crate) use thread_processor::ThreadResumeTarget;
+pub(crate) use thread_processor::ThreadSearchDelivery;
 pub(crate) use thread_queue_processor::ThreadQueueRequestProcessor;
 pub(crate) use turn_processor::TurnRequestProcessor;
 pub(crate) use windows_sandbox_processor::WindowsSandboxRequestProcessor;
@@ -618,8 +621,11 @@ use token_usage_replay::send_thread_token_usage_update_to_connection;
 
 pub(crate) fn apply_live_thread_settings(
     thread: &mut Thread,
+    loaded_thread: &CodexThread,
     config_snapshot: &ThreadConfigSnapshot,
 ) {
+    thread.daybreak_program_propagation_enrolled =
+        Some(loaded_thread.daybreak_program_propagation_enrolled());
     thread.model = Some(config_snapshot.model.clone());
     thread.reasoning_effort = config_snapshot.reasoning_effort.clone();
     thread.environments = Some(
@@ -691,6 +697,25 @@ fn resolve_turn_environment_requests(
     )
     .map_err(environment_selection_error)?;
     Ok(Some(requests))
+}
+
+/// Project-local layers cannot define providers, so explicit selectors can use the startup map.
+fn config_for_provider(
+    startup: &Arc<Config>,
+    provider_id: &str,
+) -> Result<Arc<Config>, JSONRPCErrorError> {
+    if startup.model_provider_id == provider_id {
+        return Ok(Arc::clone(startup));
+    }
+    let provider = startup.model_providers.get(provider_id).ok_or_else(|| {
+        model_provider_error(&ModelProviderError::ModelProviderNotConfigured {
+            model_provider: provider_id.to_owned(),
+        })
+    })?;
+    let mut config = startup.as_ref().clone();
+    config.model_provider_id = provider_id.to_owned();
+    config.model_provider = provider.clone();
+    Ok(Arc::new(config))
 }
 
 fn resolve_runtime_workspace_roots(workspace_roots: Vec<AbsolutePathBuf>) -> Vec<AbsolutePathBuf> {

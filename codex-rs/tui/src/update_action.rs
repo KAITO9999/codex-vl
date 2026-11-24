@@ -74,7 +74,7 @@ impl UpdateAction {
                 "sh",
                 &[
                     "-c",
-                    r#"s=$(curl -fsSL https://github.com/DioNanos/codex-vl/releases/latest/download/install.sh) && CODEX_NON_INTERACTIVE=1 eval "$s""#,
+                    r#"s=$(curl -fsSL https://github.com/KAITO9999/codex-vl/releases/latest/download/install.sh) && CODEX_NON_INTERACTIVE=1 eval "$s""#,
                 ],
             ),
             UpdateAction::NpmGlobalLatest | UpdateAction::StandaloneWindows => {
@@ -195,7 +195,7 @@ mod tests {
         let script = args[1];
         assert!(
             script.contains(
-                "https://github.com/DioNanos/codex-vl/releases/latest/download/install.sh"
+                "https://github.com/KAITO9999/codex-vl/releases/latest/download/install.sh"
             ),
             "StandaloneUnix must run the fork-owned installer, was: {script}",
         );

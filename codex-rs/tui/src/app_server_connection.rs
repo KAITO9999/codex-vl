@@ -18,8 +18,11 @@ pub(crate) async fn connect(
     identity_proof: Option<codex_app_server_protocol::IdentityProof>,
 ) -> color_eyre::Result<AppServerClient> {
     match target {
+        AppServerTarget::Cloud => {
+            color_eyre::eyre::bail!("Reopen Codex to reconnect the cloud backend.");
+        }
         AppServerTarget::Embedded => {
-            color_eyre::eyre::bail!("embedded sessions have no remote connection")
+            color_eyre::eyre::bail!("embedded sessions have no remote connection");
         }
         #[cfg(windows)]
         AppServerTarget::LocalDaemon {
@@ -29,22 +32,20 @@ pub(crate) async fn connect(
             // Revalidate at the real connection, not just the earlier discovery probe.
             let (socket_path, _directory) =
                 codex_uds::validate_private_socket_path(socket_path.as_path())?;
-            let args = RemoteAppServerConnectArgs {
-                endpoint: RemoteAppServerEndpoint::UnixSocket {
-                    socket_path: AbsolutePathBuf::from_absolute_path_checked(socket_path)?,
-                },
-                client_name: "codex-tui".to_string(),
-                client_version: env!("CARGO_PKG_VERSION").to_string(),
-                experimental_api: true,
-                mcp_server_openai_form_elicitation: false,
-                opt_out_notification_methods: Vec::new(),
-                channel_capacity: DEFAULT_IN_PROCESS_CHANNEL_CAPACITY,
-            };
-            let app_server = if identity_proof.is_some() {
-                RemoteAppServerClient::connect_with_identity(args, identity_proof).await?
-            } else {
-                RemoteAppServerClient::connect_local_daemon(args).await?
-            };
+            let app_server =
+                RemoteAppServerClient::connect_local_daemon(RemoteAppServerConnectArgs {
+                    required_human_approval: true,
+                    endpoint: RemoteAppServerEndpoint::UnixSocket {
+                        socket_path: AbsolutePathBuf::from_absolute_path_checked(socket_path)?,
+                    },
+                    client_name: "codex-tui".to_string(),
+                    client_version: env!("CARGO_PKG_VERSION").to_string(),
+                    experimental_api: true,
+                    mcp_server_openai_form_elicitation: false,
+                    opt_out_notification_methods: Vec::new(),
+                    channel_capacity: DEFAULT_IN_PROCESS_CHANNEL_CAPACITY,
+                })
+                .await?;
             Ok(AppServerClient::Remote(app_server))
         }
         AppServerTarget::LocalDaemon { endpoint, .. } | AppServerTarget::Remote { endpoint } => {
