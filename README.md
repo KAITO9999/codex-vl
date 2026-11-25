@@ -327,9 +327,10 @@ Codex VL is a community fork of OpenAI Codex. Security-relevant properties of th
 
 - **Network**: agents bind to loopback by default; nothing is exposed externally unless you opt in.
   `/remote-control` and the app-server require explicit opt-in.
-- **Supply chain**: builds and releases come only from fork-owned CI and the `@mmmbuto/codex-vl`
-  npm scope. This package does not silently fetch or run the upstream installer; updates flow
-  through the fork's own channel.
+- **Supply chain**: fork-specific build and update endpoints target KAITO9999/codex-vl.
+  The inherited @mmmbuto/codex-vl npm scope is owned by DioNanos, not this fork; npm
+  publication is blocked here until a separately owned namespace is configured. The
+  quick-install commands above still install the published upstream VL package.
 - **Termux**: TLS trust uses bundled webpki roots (no Android platform-verifier dependency), and
   advisory file locks degrade safely where unsupported.
 

@@ -205,5 +205,37 @@ class BlockingContractTest(unittest.TestCase):
         self.assertTrue(any("no matching known condition" in e for e in errs))
 
 
+class NpmPublishOwnershipTest(unittest.TestCase):
+    def test_publish_job_is_restricted_to_the_namespace_owner_repository(self):
+        workflow = {
+            "jobs": {
+                "publish-npm": {
+                    "if": (
+                        "${{ github.repository == 'DioNanos/codex-vl' && "
+                        "needs.release.outputs.should_publish_npm == 'true' }}"
+                    )
+                }
+            }
+        }
+        self.assertEqual(gate.check_npm_publish_scope(workflow), [])
+
+    def test_publish_job_without_owner_guard_is_rejected(self):
+        workflow = {
+            "jobs": {
+                "publish-npm": {
+                    "if": "${{ !cancelled() && needs.release.outputs.should_publish_npm == 'true' }}"
+                }
+            }
+        }
+        errors = gate.check_npm_publish_scope(workflow)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("DioNanos/codex-vl", errors[0])
+
+    def test_missing_publish_job_is_rejected(self):
+        errors = gate.check_npm_publish_scope({"jobs": {}})
+        self.assertEqual(len(errors), 1)
+        self.assertIn("publish-npm", errors[0])
+
+
 if __name__ == "__main__":
     unittest.main()

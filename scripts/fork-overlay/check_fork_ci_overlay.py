@@ -58,6 +58,22 @@ NO_PRIVATE_RUNNER = [
     "rust-release-argument-comment-lint.yml",
 ]
 FORBIDDEN = re.compile(r"macos-15-xlarge|-runners\b")
+NPM_SCOPE_OWNER_REPOSITORY = "DioNanos/codex-vl"
+
+
+def check_npm_publish_scope(workflow):
+    jobs = workflow.get("jobs") or {}
+    publish_job = jobs.get("publish-npm") or {}
+    condition = str(publish_job.get("if", ""))
+    required = f"github.repository == '{NPM_SCOPE_OWNER_REPOSITORY}'"
+    if required not in condition:
+        return [
+            "rust-release.yml: publish-npm is not restricted to npm namespace "
+            f"owner repository '{NPM_SCOPE_OWNER_REPOSITORY}'"
+        ]
+    return []
+
+
 
 # The aggregator step is judged by matching each line against the closed set of
 # forms it has today, never by running it: the guard runs on our machines after
@@ -154,6 +170,8 @@ def main(root):
         for j in jobs:
             if y["jobs"].get(j, {}).get("if") is not False:
                 errs.append(f"{name}: job '{j}' has no `if: false`")
+    release = yaml.safe_load(load("rust-release.yml"))
+    errs.extend(check_npm_publish_scope(release))
     for name, (rx, n) in SENTINELS.items():
         found = len(re.findall(rx, load(name)))
         if found < n:

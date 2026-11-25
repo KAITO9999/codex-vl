@@ -154,9 +154,9 @@ function getUpdatedPath(newDirs) {
   return updatedPath;
 }
 
-// codex-vl fork: pnpm links the package under the fork-owned scope, so the
-// ownership probe must resolve that scope or pnpm detection is dead for fork
-// users.
+// codex-vl fork: pnpm links the package under its configured package scope, so
+// the ownership probe must resolve that package identity or pnpm detection is
+// dead for fork users.
 function isPnpmOwnedCodexInstall(nodeModulesDir) {
   if (!existsSync(path.join(nodeModulesDir, ".modules.yaml"))) {
     return false;

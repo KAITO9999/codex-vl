@@ -1924,6 +1924,14 @@ jobs:
           set -euo pipefail
           version="${VERSION}"
 
+          # @mmmbuto/codex-vl is owned by DioNanos. Downstream forks must not
+          # publish to that namespace; use a separately owned scope first.
+          if [[ "${GITHUB_REPOSITORY}" != "DioNanos/codex-vl" ]]; then
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            echo "npm_tag=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           if [[ "${SIGN_MACOS}" != "true" ]]; then
             echo "should_publish=false" >> "$GITHUB_OUTPUT"
             echo "npm_tag=" >> "$GITHUB_OUTPUT"
@@ -2039,6 +2047,7 @@ jobs:
     # success() check to the whole dependency chain before evaluating release outputs.
     if: >-
       ${{
+        github.repository == 'DioNanos/codex-vl' &&
         !cancelled() &&
         needs.release.result == 'success' &&
         needs.release.outputs.should_publish_npm == 'true'
