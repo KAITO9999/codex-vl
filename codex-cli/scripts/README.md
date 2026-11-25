@@ -16,8 +16,9 @@ each package, and writes tarballs to `dist/npm/`.
 
 When `--package codex` is provided in this fork, the staging helper builds the
 lightweight `@mmmbuto/codex-vl` meta package plus the platform-native
-`@mmmbuto/codex-vl-*` variants that are later published under platform-specific
-dist-tags.
+`@mmmbuto/codex-vl-*` variants. These names are inherited from the upstream
+DioNanos package namespace; this fork does not own them and its release workflow
+blocks npm publication until a separately owned namespace is configured.
 
 The npm variants omit the standalone `codex-exec-server` executable and its
 `execServer` manifest entry to keep uploads within npm's package size limit.

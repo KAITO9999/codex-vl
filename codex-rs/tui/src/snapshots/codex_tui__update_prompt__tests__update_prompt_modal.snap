@@ -5,7 +5,7 @@ expression: terminal.backend()
 ---
 
   Update available · 0.166.0 → 9.9.9
-  Release notes: https://github.com/DioNanos/codex-vl/releases/latest
+  Release notes: https://github.com/KAITO9999/codex-vl/releases/latest
 
 › 1. Update now (runs `npm install -g @mmmbuto/codex-vl`)                       
   2. Skip

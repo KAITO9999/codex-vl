@@ -67,8 +67,16 @@ pub(crate) async fn spawn_child_async(request: SpawnChildRequest<'_>) -> std::io
     // inheritance nor through a later policy overlay. No-op elsewhere.
     codex_utils_process::scrub_private_launcher_env_here(&mut env);
 
+    // Both command arguments and environment variables can contain credentials.
     trace!(
-        "spawn_child_async: {program:?} {args:?} {arg0:?} {cwd:?} {network_sandbox_policy:?} {stdio_policy:?} {env:?}"
+        ?program,
+        ?cwd,
+        ?network_sandbox_policy,
+        ?stdio_policy,
+        arg_count = args.len(),
+        has_arg0_override = arg0.is_some(),
+        env_count = env.len(),
+        "spawn_child_async"
     );
 
     let mut cmd = match stdio_policy {
@@ -78,7 +86,9 @@ pub(crate) async fn spawn_child_async(request: SpawnChildRequest<'_>) -> std::io
         StdioPolicy::Inherit => Command::new(&program),
     };
     #[cfg(unix)]
-    cmd.arg0(arg0.map_or_else(|| program.to_string_lossy().to_string(), String::from));
+    if let Some(arg0) = arg0 {
+        cmd.arg0(arg0);
+    }
     cmd.args(args);
     cmd.current_dir(cwd);
     if let Some(network) = network {
@@ -145,3 +155,7 @@ pub(crate) async fn spawn_child_async(request: SpawnChildRequest<'_>) -> std::io
 
     cmd.kill_on_drop(true).spawn()
 }
+
+#[cfg(test)]
+#[path = "spawn_tests.rs"]
+mod tests;

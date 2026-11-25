@@ -3,11 +3,13 @@
 > A side-by-side Codex CLI variant with local loop orchestration and an early
 > Vivling companion layer for terminal workflows.
 
-[![npm package](https://img.shields.io/npm/v/@mmmbuto/codex-vl?style=flat-square&logo=npm)](https://www.npmjs.com/package/@mmmbuto/codex-vl)
+[![upstream npm package](https://img.shields.io/npm/v/@mmmbuto/codex-vl?style=flat-square&logo=npm)](https://www.npmjs.com/package/@mmmbuto/codex-vl)
 [![license](https://img.shields.io/badge/license-Apache%202.0-4b5563?style=flat-square)](./LICENSE)
 
 Codex VL is a fork of [OpenAI Codex](https://github.com/openai/codex) that
 installs as `codex-vl`, so it can live next to the official `codex` command.
+
+> **Downstream fork status:** this source tree targets OpenAI Codex `rust-v0.172.0` (`0.172.0-vl.1`, not yet released). The standalone and npm quick-install commands below still install the published upstream Codex VL package (`DioNanos/codex-vl`, `@mmmbuto/codex-vl`), not this fork. The fork's own installer/update endpoints target `KAITO9999/codex-vl`; they will become usable after its first release.
 
 The fork keeps the upstream Codex runtime model and adds a small set of
 experimental workflow features:
@@ -151,9 +153,7 @@ Check the version under the local prefix.
 
 ## Release Channels
 
-The `latest` and `next` channels both point to `0.166.0-vl.2`, based on
-upstream Codex `rust-v0.166.0`. The conservative `stable` tag currently points
-to `0.153.2-vl.2`.
+The published upstream `latest` and `next` channels still point to `0.166.0-vl.2`, based on upstream Codex `rust-v0.166.0`. This downstream fork's source target is `0.172.0-vl.1` (based on `rust-v0.172.0`); no fork-owned npm or GitHub release has been published yet. The conservative upstream `stable` tag currently points to `0.153.2-vl.2`.
 
 Packages cover Linux x64, Linux arm64 (musl), Android arm64, and macOS arm64
 source builds. The main package is a thin wrapper: the binaries live in the
@@ -327,9 +327,10 @@ Codex VL is a community fork of OpenAI Codex. Security-relevant properties of th
 
 - **Network**: agents bind to loopback by default; nothing is exposed externally unless you opt in.
   `/remote-control` and the app-server require explicit opt-in.
-- **Supply chain**: builds and releases come only from fork-owned CI and the `@mmmbuto/codex-vl`
-  npm scope. This package does not silently fetch or run the upstream installer; updates flow
-  through the fork's own channel.
+- **Supply chain**: fork-specific build and update endpoints target KAITO9999/codex-vl.
+  The inherited @mmmbuto/codex-vl npm scope is owned by DioNanos, not this fork; npm
+  publication is blocked here until a separately owned namespace is configured. The
+  quick-install commands above still install the published upstream VL package.
 - **Termux**: TLS trust uses bundled webpki roots (no Android platform-verifier dependency), and
   advisory file locks degrade safely where unsupported.
 

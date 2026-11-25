@@ -1,4 +1,4 @@
-> This is the codex-vl fork. Fork-specific issues and pull requests go to [DioNanos/codex-vl](https://github.com/DioNanos/codex-vl/issues); the rest of this document is upstream and describes the original `openai/codex` project.
+> This is the codex-vl fork. Fork-specific issues and pull requests go to [KAITO9999/codex-vl](https://github.com/KAITO9999/codex-vl/issues); the rest of this document is upstream and describes the original `openai/codex` project.
 
 ## Contributing
 

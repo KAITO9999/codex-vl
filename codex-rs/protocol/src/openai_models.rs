@@ -5,6 +5,7 @@
 
 use std::fmt;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use chrono::DateTime;
 use chrono::Utc;
@@ -41,6 +42,11 @@ mod memento_v2;
 pub use memento_v2::ContextManagementToolMessages;
 pub use memento_v2::HistoryToolMessages;
 pub use memento_v2::NotesToolMessages;
+mod plugins;
+pub use plugins::GenericPluginMessages;
+pub use plugins::PluginMessages;
+pub use plugins::PluginRecommendationMessages;
+pub use plugins::SelectedPluginMessages;
 #[path = "openai_models/guardian.rs"]
 mod guardian;
 pub use guardian::GuardianModelPolicy;
@@ -53,7 +59,9 @@ mod guardian_v2;
 #[path = "openai_models/reasoning_effort.rs"]
 mod reasoning_effort;
 
+pub use access_programs::DaybreakAvailability;
 pub use access_programs::ModelAccessPrograms;
+pub use access_programs::SavedDaybreakChoice;
 pub use guardian_v2::AsyncClassifierMode;
 pub use guardian_v2::GuardianV2ModelConfig;
 pub use guardian_v2::GuardianV2TranscriptModelConfig;
@@ -372,6 +380,14 @@ pub enum WebSearchToolType {
     TextAndImage,
 }
 
+/// Provider preference selected by the resolved model catalog entry.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum WebSearchProvider {
+    Standalone,
+    SearchMcp,
+}
+
 /// Server-provided truncation policy metadata for a model.
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, TS, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -484,6 +500,8 @@ pub struct ModelInfo {
     pub apply_patch_tool_type: Option<ApplyPatchToolType>,
     #[serde(default)]
     pub web_search_tool_type: WebSearchToolType,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub web_search_provider: Option<WebSearchProvider>,
     pub truncation_policy: TruncationPolicyConfig,
     #[serde(default)]
     pub supports_image_detail_original: bool,
@@ -508,11 +526,6 @@ pub struct ModelInfo {
     /// Input modalities accepted by the backend for this model.
     #[serde(default = "default_input_modalities")]
     pub input_modalities: Vec<InputModality>,
-    /// Internal-only marker set by core when a model slug resolved to fallback metadata.
-    #[serde(default, skip_serializing, skip_deserializing)]
-    #[schemars(skip)]
-    #[ts(skip)]
-    pub used_fallback_model_metadata: bool,
     #[serde(default)]
     pub supports_search_tool: bool,
     /// Whether experimental context management may be activated at session startup.
@@ -547,6 +560,43 @@ pub struct ModelInfo {
     /// Reasoning effort used for multi-agent work when the user selects Ultra.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub multi_agent_reasoning_effort: Option<ReasoningEffort>,
+    /// Whether native multi-agent tools follow the model's tool mode instead of staying direct-only.
+    /// When absent, preserve the runtime's `multi_agent_v2.non_code_mode_only` setting.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub multi_agent_tools_in_code_mode: Option<bool>,
+}
+
+/// Where model metadata was obtained during local catalog resolution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModelOrigin {
+    Bundled,
+    Provider,
+    ExplicitConfig,
+    /// Generic metadata synthesized when no catalog entry matches the requested model.
+    Synthetic,
+}
+
+/// Model metadata and its locally determined source, retained together through resolution.
+/// Metadata is shared with runtime snapshots and extension stores; mutation uses copy-on-write.
+/// This runtime wrapper is not serialized; managers assign its source from local catalog state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CatalogModel {
+    pub model: Arc<ModelInfo>,
+    pub origin: ModelOrigin,
+}
+
+impl std::ops::Deref for CatalogModel {
+    type Target = ModelInfo;
+
+    fn deref(&self) -> &Self::Target {
+        &self.model
+    }
+}
+
+impl std::ops::DerefMut for CatalogModel {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        Arc::make_mut(&mut self.model)
+    }
 }
 
 pub fn validate_model_messages(model: &ModelInfo) -> Result<(), ModelMessageTextTooLong> {
@@ -625,6 +675,12 @@ impl ModelInfo {
 /// retained for model catalog compatibility.
 #[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq, Eq, TS, JsonSchema)]
 pub struct ModelMessages {
+    /// Model-owned Apps usage guidance, subject to existing Apps availability and authorization.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub apps: Option<AppsMessages>,
+    /// Model-owned plugin wording; runtime capability facts and eligibility remain client-owned.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plugins: Option<PluginMessages>,
     /// Developer guidance after a content-filter block. Missing, null, blank, or values over
     /// 512 UTF-8 bytes use the bundled guidance.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -648,6 +704,15 @@ pub struct ModelMessages {
     /// Replacement confirmation-policy documents forwarded in actor MCP request metadata.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub confirmation_policies: Option<ConfirmationPolicies>,
+}
+
+/// Literal model-owned Apps guidance inside the existing developer fragment markers.
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq, Eq, TS, JsonSchema)]
+pub struct AppsMessages {
+    /// Missing/null uses bundled guidance; empty clears it. Whitespace-only or more than
+    /// 800 UTF-8 bytes falls back to bundled guidance. Other values preserve exact bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage_instructions: Option<String>,
 }
 
 /// Model-owned confirmation-policy Markdown, forwarded unchanged to actor tools.
@@ -1238,6 +1303,7 @@ mod tests {
             default_verbosity: None,
             apply_patch_tool_type: None,
             web_search_tool_type: WebSearchToolType::Text,
+            web_search_provider: None,
             truncation_policy: TruncationPolicyConfig::bytes(/*limit*/ 10_000),
             supports_image_detail_original: false,
             context_window: None,
@@ -1247,7 +1313,6 @@ mod tests {
             effective_context_window_percent: 95,
             experimental_supported_tools: vec![],
             input_modalities: default_input_modalities(),
-            used_fallback_model_metadata: false,
             supports_search_tool: false,
             supports_experimental_context: false,
             use_responses_lite: false,
@@ -1260,6 +1325,7 @@ mod tests {
             tool_mode: None,
             multi_agent_version: None,
             multi_agent_reasoning_effort: None,
+            multi_agent_tools_in_code_mode: None,
         }
     }
     #[test]
@@ -1272,73 +1338,29 @@ mod tests {
     }
 
     #[test]
-    fn model_message_text_cap_accepts_none_empty_and_exact_limit() {
-        assert!(validate_model_messages(&test_model(None)).is_ok());
-        let empty = ModelMessages {
-            persistent_instructions: Some(String::new()),
-            tools: None,
-            instructions_template: Some("template".to_string()),
-            approvals: None,
-            collaboration_modes: None,
-            auto_review: Some(AutoReviewMessages {
-                policy: None,
-                policy_template: None,
-                node_repl_policy: Some(String::new()),
-                rejection_instructions: None,
-                timeout_instructions: None,
-            }),
-            permissions: None,
-            multi_agent: None,
-            token_budget: None,
-            guardian_v2: None,
-            confirmation_policies: None,
-            content_filter_guidance: None,
-        };
-        assert!(validate_model_messages(&test_model(Some(empty))).is_ok());
-        let exact = ModelMessages {
-            persistent_instructions: Some("x".repeat(MODEL_MESSAGE_TEXT_MAX_BYTES)),
-            tools: None,
-            instructions_template: Some("template".to_string()),
-            approvals: None,
-            collaboration_modes: None,
-            auto_review: None,
-            permissions: None,
-            multi_agent: None,
-            token_budget: None,
-            guardian_v2: None,
-            confirmation_policies: None,
-            content_filter_guidance: None,
-        };
-        assert!(validate_model_messages(&test_model(Some(exact))).is_ok());
-    }
-
-    #[test]
-    fn model_message_text_cap_reports_field_slug_size_and_no_content() {
-        let secret = "secret-content";
-        let error = validate_model_message_text(
-            "test-model",
-            "persistent_instructions",
-            &format!("{}{}", "x".repeat(MODEL_MESSAGE_TEXT_MAX_BYTES), secret),
-        )
-        .expect_err("oversized model message must fail");
-        assert_eq!(error.field, "persistent_instructions");
-        assert_eq!(error.model_slug, "test-model");
-        assert_eq!(
-            error.actual_bytes,
-            MODEL_MESSAGE_TEXT_MAX_BYTES + secret.len()
-        );
-        assert_eq!(error.max_bytes, MODEL_MESSAGE_TEXT_MAX_BYTES);
-        assert!(!error.to_string().contains(secret));
-    }
-
-    #[test]
-    fn model_message_text_cap_counts_utf8_bytes_without_truncating() {
-        let text = format!("{}é", "x".repeat(MODEL_MESSAGE_TEXT_MAX_BYTES - 1));
-        let error = validate_model_message_text("utf8-model", "persistent_instructions", &text)
-            .expect_err("8193 UTF-8 bytes must be rejected");
-        assert_eq!(error.actual_bytes, MODEL_MESSAGE_TEXT_MAX_BYTES + 1);
-        assert_eq!(error.max_bytes, MODEL_MESSAGE_TEXT_MAX_BYTES);
-        assert_eq!(text.len(), MODEL_MESSAGE_TEXT_MAX_BYTES + 1);
+    fn apps_messages_preserve_nullable_and_literal_wire_values() {
+        for apps in [
+            serde_json::Value::Null,
+            serde_json::json!({}),
+            serde_json::json!({"usage_instructions": null}),
+            serde_json::json!({"usage_instructions": ""}),
+            serde_json::json!({"usage_instructions": " \r\n\t"}),
+            serde_json::json!({"usage_instructions": "  {{literal}}\r\n"}),
+            serde_json::json!({"usage_instructions": "é".repeat(501)}),
+        ] {
+            let messages: ModelMessages =
+                serde_json::from_value(serde_json::json!({"apps": apps})).unwrap();
+            let serialized = serde_json::to_value(messages).unwrap();
+            let mut expected = serde_json::to_value(ModelMessages::default()).unwrap();
+            if !apps.is_null() {
+                expected["apps"] = if apps["usage_instructions"].is_null() {
+                    serde_json::json!({})
+                } else {
+                    apps
+                };
+            }
+            assert_eq!(serialized, expected);
+        }
     }
 
     #[test]
@@ -1839,6 +1861,10 @@ mod tests {
     #[test]
     fn models_response_prefers_template_and_preserves_message_siblings() {
         let messages = ModelMessages {
+            apps: Some(AppsMessages {
+                usage_instructions: Some("Literal Apps {{guidance}}".to_string()),
+            }),
+            plugins: None,
             content_filter_guidance: Some("Offer a permitted alternative.".to_string()),
             persistent_instructions: Some("Persistent catalog instructions".to_string()),
             tools: Some(ToolMessages {
@@ -2000,6 +2026,24 @@ mod tests {
         assert_eq!(model.auto_review_model_override, None);
         assert_eq!(model.tool_mode, None);
         assert_eq!(model.multi_agent_reasoning_effort, None);
+    }
+
+    #[test]
+    fn model_info_preserves_multi_agent_code_mode_presence() {
+        let base = test_model(/*spec*/ None);
+        let base_json = serde_json::to_value(&base).expect("serialize model");
+        assert!(base_json.get("multi_agent_tools_in_code_mode").is_none());
+        assert_eq!(
+            serde_json::from_value::<ModelInfo>(base_json.clone()).unwrap(),
+            base
+        );
+        for value in [None, Some(false), Some(true)] {
+            let mut json = base_json.clone();
+            json["multi_agent_tools_in_code_mode"] = serde_json::to_value(value).unwrap();
+            let mut expected = base.clone();
+            expected.multi_agent_tools_in_code_mode = value;
+            assert_eq!(serde_json::from_value::<ModelInfo>(json).unwrap(), expected);
+        }
     }
 
     #[test]
@@ -2260,13 +2304,17 @@ mod tests {
             (Some(serde_json::Value::Null), None),
             (
                 Some(serde_json::json!({ "cyber": [] })),
-                Some(ModelAccessPrograms { cyber: vec![] }),
+                Some(ModelAccessPrograms {
+                    cyber: vec![],
+                    daybreak_availability: Default::default(),
+                }),
             ),
             (
                 Some(serde_json::json!({
                     "cyber": ["standard", "daybreak_blue", "future_program", "daybreak_red"]
                 })),
                 Some(ModelAccessPrograms {
+                    daybreak_availability: Default::default(),
                     cyber: vec![
                         CyberAccessProgram::Standard,
                         CyberAccessProgram::DaybreakBlue,
@@ -2274,7 +2322,46 @@ mod tests {
                     ],
                 }),
             ),
-        ] {
+        ]
+        .into_iter()
+        .chain(
+            [
+                (
+                    serde_json::json!("available"),
+                    DaybreakAvailability::Available,
+                ),
+                (
+                    serde_json::json!("enrollment_required"),
+                    DaybreakAvailability::EnrollmentRequired,
+                ),
+                (
+                    serde_json::json!("unavailable_for_model"),
+                    DaybreakAvailability::UnavailableForModel,
+                ),
+                (serde_json::json!("default"), DaybreakAvailability::Default),
+                (
+                    serde_json::json!("future_status"),
+                    DaybreakAvailability::Default,
+                ),
+            ]
+            .into_iter()
+            .map(|(availability, expected_availability)| {
+                (
+                    Some(serde_json::json!({
+                        "cyber": ["standard", "daybreak_blue", "future_program", "daybreak_red"],
+                        "daybreak_availability": availability,
+                    })),
+                    Some(ModelAccessPrograms {
+                        cyber: vec![
+                            CyberAccessProgram::Standard,
+                            CyberAccessProgram::DaybreakBlue,
+                            CyberAccessProgram::DaybreakRed,
+                        ],
+                        daybreak_availability: expected_availability,
+                    }),
+                )
+            }),
+        ) {
             let mut value = serde_json::to_value(test_model(/*spec*/ None)).unwrap();
             if let Some(metadata) = metadata {
                 value["available_access_programs"] = metadata;

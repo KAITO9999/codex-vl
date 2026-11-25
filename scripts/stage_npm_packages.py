@@ -20,7 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 BUILD_SCRIPT = REPO_ROOT / "codex-cli" / "scripts" / "build_npm_package.py"
 WORKFLOW_NAME = ".github/workflows/rust-release.yml"
 # codex-vl: artifacts come from the fork's CI on GitHub.
-GITHUB_REPO = "DioNanos/codex-vl"
+GITHUB_REPO = "KAITO9999/codex-vl"
 BINARY_TARGETS = (
     "x86_64-unknown-linux-musl",
     "aarch64-unknown-linux-musl",

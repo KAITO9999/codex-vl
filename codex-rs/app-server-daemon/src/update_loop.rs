@@ -803,7 +803,7 @@ async fn install_latest_standalone() -> Result<()> {
         "codex-vl fork: standalone auto-updater is disabled. The daemon does \
          not fetch any install script in the background. To update the fork \
          standalone install, re-run the installer attached to the \
-         DioNanos/codex-vl releases, or run: \
+         KAITO9999/codex-vl releases, or run: \
          npm install -g @mmmbuto/codex-vl@latest"
     )
 }

@@ -4,9 +4,9 @@
 //! silently retarget the npm package name or repository URL back at the
 //! parent `openai/codex` project.
 
-/// Pin: `codex-cli/package.json` keeps its fork-owned identity:
-/// `name = "@mmmbuto/codex-vl"` and `repository.url` pointing at the
-/// `DioNanos/codex-vl` GitHub repo.
+/// Pin: `codex-cli/package.json` keeps the inherited npm name for local compatibility:
+/// the inherited `@mmmbuto/codex-vl` name while `repository.url` points at the
+/// downstream `KAITO9999/codex-vl` repo. Do not publish under the inherited scope.
 #[test]
 fn fork_identity_pin_codex_cli_package_json() {
     const PACKAGE_JSON: &str = include_str!("../../../codex-cli/package.json");
@@ -19,7 +19,7 @@ fn fork_identity_pin_codex_cli_package_json() {
         .expect("codex-cli/package.json must declare a string `name`");
     assert_eq!(
         name, "@mmmbuto/codex-vl",
-        "codex-cli/package.json `name` must remain @mmmbuto/codex-vl",
+        "codex-cli/package.json keeps the inherited @mmmbuto/codex-vl name until an owned scope is introduced",
     );
 
     let repository_url = manifest
@@ -28,9 +28,9 @@ fn fork_identity_pin_codex_cli_package_json() {
         .and_then(|value| value.as_str())
         .expect("codex-cli/package.json must declare a string `repository.url`");
     assert!(
-        repository_url.contains("DioNanos/codex-vl"),
+        repository_url.contains("KAITO9999/codex-vl"),
         "codex-cli/package.json `repository.url` must point at the fork \
-         repo (DioNanos/codex-vl). Was: {repository_url}",
+         repo (KAITO9999/codex-vl). Was: {repository_url}",
     );
     assert!(
         !repository_url.contains("openai/codex"),

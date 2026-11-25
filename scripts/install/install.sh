@@ -4,7 +4,7 @@ set -eu
 
 # codex-vl standalone installer.
 #
-# Installs the `codex-vl` command from the DioNanos/codex-vl GitHub releases
+# Installs the `codex-vl` command from the KAITO9999/codex-vl GitHub releases
 # into ${CODEX_HOME:-~/.codex}/packages/standalone-vl/ and symlinks
 # ~/.local/bin/codex-vl (or $PREFIX/bin on Termux) at it. Verification chain:
 # GitHub asset digest of SHA256SUMS -> SHA256SUMS -> archive sha256 -> staging
@@ -37,7 +37,7 @@ embedded_package_digest() {
 }
 # --- END embedded release checksums ---
 
-GITHUB_REPO="DioNanos/codex-vl"
+GITHUB_REPO="KAITO9999/codex-vl"
 NPM_PACKAGE="@mmmbuto/codex-vl"
 COMMAND_NAME="codex-vl"
 CODEX_HOME_DIR="${CODEX_HOME:-$HOME/.codex}"
@@ -85,7 +85,7 @@ usage() {
 Usage: install.sh [--release VERSION] [--uninstall] [--no-modify-path]
                   [--bin-dir DIR] [--from-dir DIR]
 
-Installs the codex-vl CLI from the DioNanos/codex-vl GitHub releases.
+Installs the codex-vl CLI from the KAITO9999/codex-vl GitHub releases.
 
 The install is self-contained: it only writes
 \${CODEX_HOME:-~/.codex}/packages/standalone-vl/ and a \`codex-vl\` symlink.

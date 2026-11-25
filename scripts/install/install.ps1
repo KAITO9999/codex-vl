@@ -12,7 +12,7 @@ if ([string]::IsNullOrWhiteSpace($Release)) {
 }
 
 $NonInteractive = $env:CODEX_NON_INTERACTIVE -match "^(?i:1|true|yes)$"
-# Fork-owned: releases resolve from DioNanos/codex-vl only. Upstream also ships
+# Fork-owned: releases resolve from KAITO9999/codex-vl only. Upstream also ships
 # its own distribution channel plus an upstream GitHub fallback; keeping those
 # here would make this installer hand a user upstream Codex under the fork's
 # name. install.sh has always resolved fork-only and codex-termux keeps the
@@ -162,7 +162,7 @@ function Resolve-ReleaseAssetSelection {
     $packageAsset = "codex-package-$Target.tar.gz"
     $checksumAsset = "codex-package_SHA256SUMS"
     # Fork assets come from the release metadata itself (browser_download_url on
-    # DioNanos/codex-vl); no upstream URL is ever constructed here.
+    # KAITO9999/codex-vl); no upstream URL is ever constructed here.
     $packageUrl = $null
     $packageFallbackUrl = $null
     $checksumUrl = $null
@@ -333,11 +333,11 @@ function Resolve-ReleaseFromGitHub {
 
     if ($NormalizedVersion -eq "latest") {
         $requestedRelease = "latest"
-        $metadataUri = "https://api.github.com/repos/DioNanos/codex-vl/releases/latest"
+        $metadataUri = "https://api.github.com/repos/KAITO9999/codex-vl/releases/latest"
     } else {
         $resolvedVersion = $NormalizedVersion
         $requestedRelease = $resolvedVersion
-        $metadataUri = "https://api.github.com/repos/DioNanos/codex-vl/releases/tags/v$resolvedVersion"
+        $metadataUri = "https://api.github.com/repos/KAITO9999/codex-vl/releases/tags/v$resolvedVersion"
     }
 
     try {

@@ -154,9 +154,9 @@ function getUpdatedPath(newDirs) {
   return updatedPath;
 }
 
-// codex-vl fork: pnpm links the package under the fork-owned scope, so the
-// ownership probe must resolve that scope or pnpm detection is dead for fork
-// users.
+// codex-vl fork: pnpm links the package under its configured package scope, so
+// the ownership probe must resolve that package identity or pnpm detection is
+// dead for fork users.
 function isPnpmOwnedCodexInstall(nodeModulesDir) {
   if (!existsSync(path.join(nodeModulesDir, ".modules.yaml"))) {
     return false;
@@ -490,14 +490,9 @@ child.on("error", (err) => {
   process.exit(1);
 });
 
-// Forward common termination signals to the child so that it shuts down
-// gracefully. In the handler we temporarily disable the default behavior of
-// exiting immediately; once the child has been signaled we simply wait for
-// its exit event which will in turn terminate the parent (see below).
+// Keep forwarding signals until the child exits so a second signal can
+// interrupt a graceful shutdown.
 const forwardSignal = (signal) => {
-  if (child.killed) {
-    return;
-  }
   try {
     child.kill(signal);
   } catch {

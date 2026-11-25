@@ -40,16 +40,21 @@ const sourceRoot = path.resolve(
 );
 
 const LAUNCHERS = ["codex.js", "codex-exec.js"];
+const skipLinuxLauncherTests =
+  process.platform === "android"
+    ? "Linux target launcher branch requires a Linux host"
+    : false;
 const PATH_INPUT = "/nonexistent-launcher-test-path";
-// The stand-in runs via a `#!/usr/bin/env node` shebang, so the child needs
-// the real Node binary directory on PATH in addition to the probe entry.
+// Keep the real Node binary directory in the caller PATH, followed by the
+// isolated probe entry used to verify launcher PATH handling.
 const NODE_BIN_DIR = path.dirname(process.execPath);
 const BASE_PATH = `${NODE_BIN_DIR}:${PATH_INPUT}`;
 
 // Executed instead of the real ELF: dumps argv + env, then exits with the
-// requested code or terminates itself with the requested signal.
+// requested code or terminates itself with the requested signal. Use the
+// current Node executable directly; Android/Termux does not provide /usr/bin/env.
 const NATIVE_STANDIN = [
-  "#!/usr/bin/env node",
+  `#!${process.execPath}`,
   'import fs from "node:fs";',
   "const dump = { argv: process.argv.slice(2), env: { ...process.env } };",
   "fs.writeFileSync(process.env.CODEX_TEST_DUMP, JSON.stringify(dump));",
@@ -233,7 +238,10 @@ function assertNoVendorDirInLd(dumpEnv, vendorDir) {
 
 // --- Linux launchers: caller environment verbatim + managed metadata ------
 
-test("linux launcher passes caller env verbatim and keeps managed metadata", (t) => {
+test(
+  "linux launcher passes caller env verbatim and keeps managed metadata",
+  { skip: skipLinuxLauncherTests },
+  (t) => {
   const fixture = buildFixture(t, {
     triple: "x86_64-unknown-linux-musl",
     withPlatformPackage: false,
@@ -291,7 +299,10 @@ test("linux launcher passes caller env verbatim and keeps managed metadata", (t)
   }
 });
 
-test("linux launcher keeps a custom LD_LIBRARY_PATH byte for byte", (t) => {
+test(
+  "linux launcher keeps a custom LD_LIBRARY_PATH byte for byte",
+  { skip: skipLinuxLauncherTests },
+  (t) => {
   const fixture = buildFixture(t, {
     triple: "x86_64-unknown-linux-musl",
     withPlatformPackage: false,

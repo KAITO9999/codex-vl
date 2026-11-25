@@ -24,7 +24,7 @@ CODEX_CLI_ROOT = SCRIPT_DIR.parent
 # keep a parent-project workflow URL here: a missing `--workflow-url` should
 # fail rather than silently downloading native payloads from the wrong project.
 DEFAULT_WORKFLOW_URL = ""
-DEFAULT_GITHUB_REPO = "DioNanos/codex-vl"
+DEFAULT_GITHUB_REPO = "KAITO9999/codex-vl"
 VENDOR_DIR_NAME = "vendor"
 RG_MANIFEST = CODEX_CLI_ROOT / "bin" / "rg"
 BINARY_TARGETS = (
@@ -141,7 +141,7 @@ def parse_args() -> argparse.Namespace:
         "--workflow-url",
         help=(
             "GitHub Actions workflow URL that produced the artifacts. Codex VL "
-            "requires this to be a DioNanos/codex-vl workflow run."
+            "requires this to be a KAITO9999/codex-vl workflow run."
         ),
     )
     parser.add_argument(
@@ -199,7 +199,7 @@ def main() -> int:
     if not workflow_url:
         raise SystemExit(
             "Missing --workflow-url. Codex VL does not default to parent-project "
-            "native artifacts; pass a DioNanos/codex-vl GitHub Actions run URL."
+            "native artifacts; pass a KAITO9999/codex-vl GitHub Actions run URL."
         )
 
     workflow_id = workflow_url.rstrip("/").split("/")[-1]
@@ -223,7 +223,7 @@ def main() -> int:
         ) as artifacts_dir_str:
             artifacts_dir = Path(artifacts_dir_str)
             # codex-vl fork: pass `repo=repo` so artifacts are downloaded from
-            # DioNanos/codex-vl by default; upstream's `install_codex_package_archives`
+            # KAITO9999/codex-vl by default; upstream's `install_codex_package_archives`
             # + legacy fallback are preserved for the new `codex-package` layout.
             _download_artifacts(workflow_id, artifacts_dir, repo=repo)
             if CODEX_PACKAGE_COMPONENT in components:

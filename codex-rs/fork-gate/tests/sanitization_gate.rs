@@ -1256,7 +1256,7 @@ fn i_motivi_mordano_ancora() {
     // ma non quello) NON e' upstream: il criterio lo distingue, non lo accetta
     // by host or name proximity.
     for wrong in [
-        "https://github.com/DioNanos/codex-vl.git",
+        "https://github.com/KAITO9999/codex-vl.git",
         "https://github.com/openai/codex-cli.git",
         "git@github.com:forks/codex-mirror.git",
     ] {
@@ -1333,7 +1333,7 @@ fn i_motivi_mordano_ancora() {
 
     // L'identita' PUBBLICA del progetto NON e' un leak: non deve essere
     // flaggata. (dominio, mail e repo del fork sono dichiarati e pubblici.)
-    for identity in ["dev@mmmbuto.com", "mmmbuto", "DioNanos/codex-vl"] {
+    for identity in ["dev@mmmbuto.com", "mmmbuto", "KAITO9999/codex-vl"] {
         assert!(
             !has_isolated(identity, &handle),
             "l'identita' pubblica del progetto non e' un leak: {identity}"
@@ -1473,7 +1473,7 @@ fn canonical_remote_concorda_con_git_sullautorita() {
         "git@github.com:openai/codex.git",
         "ssh://git@github.com/openai/codex.git",
         // sbagliati ma interpretabili (host reale, diverso da quello atteso)
-        "https://github.com/DioNanos/codex-vl.git",
+        "https://github.com/KAITO9999/codex-vl.git",
         "https://github.com/openai/codex-cli.git",
         "git@github.com:forks/codex-mirror.git",
         // non interpretabile

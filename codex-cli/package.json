@@ -1,6 +1,6 @@
 {
   "name": "@mmmbuto/codex-vl",
-  "version": "0.166.0-vl.2",
+  "version": "0.172.0-vl.1",
   "license": "Apache-2.0",
   "bin": {
     "codex-vl": "bin/codex.js",
@@ -21,7 +21,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DioNanos/codex-vl.git"
+    "url": "git+https://github.com/KAITO9999/codex-vl.git"
   },
   "publishConfig": {
     "tag": "next"

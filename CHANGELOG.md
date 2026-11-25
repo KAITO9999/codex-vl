@@ -1,3 +1,16 @@
+## Unreleased — target 0.172.0-vl.1
+
+- Sync the VL fork from OpenAI Codex `rust-v0.166.0` to `rust-v0.172.0` while
+  retaining the fork-specific workflow and packaging layer.
+- Reconnect the identity handshake module and the Vivling background model
+  client to the current app-server/client architecture.
+- Restore the provider-level switch for flat multi-agent tool names.
+- Route this downstream fork's installers, release checks, feedback links, and
+  update feeds to `KAITO9999/codex-vl`; keep upstream V8 artifacts explicitly
+  sourced from the original VL release repository.
+- Pending full Rust build and GitHub Actions validation. No fork release has
+  been published.
+
 # Changelog
 
 All notable Codex VL changes are tracked here.

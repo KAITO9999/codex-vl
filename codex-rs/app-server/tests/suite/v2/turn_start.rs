@@ -903,10 +903,9 @@ async fn turn_start_additional_context_flows_to_model_input(
     let ThreadStartResponse { thread, .. } = mcp
         .start_thread(ThreadStartParams {
             model: Some("mock-model".to_string()),
-            config: Some(HashMap::from([(
-                "features.untrusted_as_tool_output".to_owned(),
-                json!(tool_outputs),
-            )])),
+            config: (!tool_outputs).then(|| {
+                HashMap::from([("features.untrusted_as_tool_output".to_owned(), json!(false))])
+            }),
             ..Default::default()
         })
         .await?;
@@ -2520,6 +2519,11 @@ fn managed_network_sandbox_probe() -> Result<()> {
         connection,
         "GET http://{target}/sandbox HTTP/1.0\r\nHost: {target}\r\nConnection: close\r\n\r\n"
     )?;
+    if let Some(signal) = std::env::var_os("CODEX_TEST_DISCONNECT_NETWORK_PROBE") {
+        // The parent releases its lock after receiving the approval, or when the test exits.
+        std::fs::File::open(signal)?.lock_shared()?;
+        return Ok(());
+    }
     let mut response = String::new();
     connection
         .take(/*limit*/ 4096)
@@ -3105,13 +3109,13 @@ async fn turn_start_reports_personality_overrides_v2(
 }
 
 #[tokio::test]
-async fn turn_start_defaults_local_image_detail_to_high() -> Result<()> {
+async fn turn_start_defaults_local_image_detail_to_original() -> Result<()> {
     let input_images = run_local_image_turn(/*detail*/ None).await?;
 
     assert_eq!(input_images.len(), 1);
     assert_eq!(
         input_images[0].get("detail").and_then(Value::as_str),
-        Some("high")
+        Some("original")
     );
 
     Ok(())
@@ -3618,7 +3622,7 @@ async fn turn_start_explicit_local_environment_updates_legacy_cwd_between_turns(
                 approval_policy: Some(codex_app_server_protocol::AskForApproval::Never),
                 approvals_reviewer: None,
                 sandbox_policy: Some(codex_app_server_protocol::SandboxPolicy::WorkspaceWrite {
-                    writable_roots: vec![first_writable_root],
+                    writable_roots: vec![first_writable_root.into()],
                     network_access: false,
                     exclude_tmpdir_env_var: true,
                     exclude_slash_tmp: true,
@@ -3693,7 +3697,10 @@ async fn turn_start_explicit_local_environment_updates_legacy_cwd_between_turns(
         mcp.read_notification("thread/settings/updated"),
     )
     .await??;
-    assert_eq!(settings_updated.thread_settings.cwd, second_cwd.abs());
+    assert_eq!(
+        settings_updated.thread_settings.cwd,
+        second_cwd.abs().into()
+    );
 
     let command_exec_item = timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
@@ -4806,6 +4813,9 @@ async fn direct_input_to_multi_agent_v2_subagent_is_rejected(
         .request(|request_id| ClientRequest::ThreadList {
             request_id,
             params: codex_app_server_protocol::ThreadListParams {
+                include_attached_threads: false,
+                current_account_only: false,
+                included_thread_ids: None,
                 excluded_thread_ids: None,
                 attached_to_thread_id: None,
                 originators: None,

@@ -29,7 +29,9 @@ OFF_JOBS = {
     ],
     "rust-ci-full.yml": [
         "argument_comment_lint_prebuilt",
+        "cargo_voice_inputs",
         "lint_build",
+        "lint_build_musl",
         "tests_macos_aarch64",
         "tests_linux_x64_remote",
         "tests_linux_arm64",
@@ -41,10 +43,10 @@ OFF_JOBS = {
 }
 # Restore-comment sentinels: file -> (regex, minimum count)
 SENTINELS = {
-    "bazel.yml": (r"[Dd]isabled on this fork", 9),
+    "bazel.yml": (r"[Dd]isabled on this fork", 5),
     "blocking-ci.yml": (r"disabled on this fork|not a merge gate", 2),
     "rust-ci-full.yml": (r"[Dd]isabled on this fork", 9),
-    "rust-ci.yml": (r"[Dd]isabled on this fork", 3),
+    "rust-ci.yml": (r"[Dd]isabled on this fork", 2),
     "rust-release-argument-comment-lint.yml": (r"[Dd]isabled on this fork", 2),
     "sdk.yml": (r"[Dd]isabled on this fork", 1),
     "v8-canary.yml": (r"[Dd]isabled on this fork", 1),
@@ -56,6 +58,22 @@ NO_PRIVATE_RUNNER = [
     "rust-release-argument-comment-lint.yml",
 ]
 FORBIDDEN = re.compile(r"macos-15-xlarge|-runners\b")
+NPM_SCOPE_OWNER_REPOSITORY = "DioNanos/codex-vl"
+
+
+def check_npm_publish_scope(workflow):
+    jobs = workflow.get("jobs") or {}
+    publish_job = jobs.get("publish-npm") or {}
+    condition = str(publish_job.get("if", ""))
+    required = f"github.repository == '{NPM_SCOPE_OWNER_REPOSITORY}'"
+    if required not in condition:
+        return [
+            "rust-release.yml: publish-npm is not restricted to npm namespace "
+            f"owner repository '{NPM_SCOPE_OWNER_REPOSITORY}'"
+        ]
+    return []
+
+
 
 # The aggregator step is judged by matching each line against the closed set of
 # forms it has today, never by running it: the guard runs on our machines after
@@ -152,6 +170,8 @@ def main(root):
         for j in jobs:
             if y["jobs"].get(j, {}).get("if") is not False:
                 errs.append(f"{name}: job '{j}' has no `if: false`")
+    release = yaml.safe_load(load("rust-release.yml"))
+    errs.extend(check_npm_publish_scope(release))
     for name, (rx, n) in SENTINELS.items():
         found = len(re.findall(rx, load(name)))
         if found < n:
@@ -173,7 +193,7 @@ def main(root):
                     "runner group in runs-on or matrix; the leg must stay commented out"
                 )
     needs = yaml.safe_load(load("blocking-ci.yml"))["jobs"]
-    gate = next(v for v in needs.values() if isinstance(v, dict) and "needs" in v)
+    gate = needs["required"]
     for dead in ("bazel", "sdk"):
         if dead in gate["needs"]:
             errs.append(

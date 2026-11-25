@@ -1,16 +1,17 @@
 diff --git a/.github/workflows/bazel.yml b/.github/workflows/bazel.yml
-index 9bf3ebf548..14ef02b21a 100644
+index 108bcf578..9fbd72241 100644
 --- a/.github/workflows/bazel.yml
 +++ b/.github/workflows/bazel.yml
-@@ -20,16 +20,25 @@ jobs:
-     # signal without putting PR latency back on the critical path. When
-     # Code-mode unit tests run on every Bazel target. When authenticated RBE
-     # is available, the Windows-cross shards exercise the source-built V8 path.
+@@ -24,17 +24,25 @@ jobs:
+       id-token: write
+     # PRs use the sharded Windows cross-compiled test jobs below. Post-merge
+     # pushes to main also run the native Windows test job for broader Windows
+-    # signal without putting PR latency back on the critical path.
 +    # Disabled on this fork. Bazel is upstream's build system and uses a
 +    # remote cache with credentials this fork does not have. This fork
 +    # publishes with cargo. Re-enable by removing this `if`.
 +    if: false
-     timeout-minutes: 30
+     timeout-minutes: 120
      strategy:
        fail-fast: false
        matrix:
@@ -32,19 +33,21 @@ index 9bf3ebf548..14ef02b21a 100644
  
            # Linux
            - os: ubuntu-24.04
-@@ -142,6 +151,11 @@ jobs:
-     # Split the Windows Bazel test leg across separate Windows hosts. Jobs with
-     # BuildBuddy credentials use Linux RBE for build actions; test execution
-     # remains on a Windows runner.
+@@ -142,8 +150,11 @@ jobs:
+   test-windows-shard:
+     permissions:
+       contents: read
+-      id-token: write
+-    # Build and test Windows shards on separate Windows runners.
 +    # Disabled on this fork: this leg requires the upstream-only private runner
 +    # group below (`<repo>-runners`), which does not exist here, so the jobs
 +    # fail to schedule at all. Re-enable by removing the `if` and setting up
 +    # the runner group.
 +    if: false
-     timeout-minutes: 30
+     timeout-minutes: 90
      strategy:
        fail-fast: false
-@@ -243,7 +257,9 @@ jobs:
+@@ -250,7 +261,9 @@ jobs:
    test-windows:
      # Preserve the existing required-check surface while the real work happens
      # in the sharded Windows jobs above.
@@ -55,32 +58,32 @@ index 9bf3ebf548..14ef02b21a 100644
      needs: test-windows-shard
      runs-on: ubuntu-24.04
      name: Bazel test on windows-latest for x86_64-pc-windows-gnullvm
-@@ -260,8 +276,11 @@ jobs:
-   test-windows-native-main:
+@@ -270,8 +283,10 @@ jobs:
+       id-token: write
      # Native Windows Bazel tests are slower and frequently approach the
      # 30-minute PR budget. Run this only for post-merge commits to main and give
 -    # it a larger timeout. Also allow manual runs for native toolchain changes.
 -    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
-+    # it a larger timeout.
 +    # Disabled on this fork: it requires the upstream-only private runner group
 +    # below (`<repo>-runners`), which does not exist here. Re-enable by
 +    # removing the `if` and setting up the runner group.
 +    if: false
-     timeout-minutes: 40
+     timeout-minutes: 90
      runs-on:
        group: ${{ github.event.repository.name }}-runners
-@@ -340,6 +359,10 @@ jobs:
-         uses: ./.github/actions/check-clean-worktree
- 
+@@ -356,7 +371,10 @@ jobs:
    clippy:
+     permissions:
+       contents: read
+-      id-token: write
 +    # Disabled on this fork. Bazel is upstream's build system and uses a
 +    # remote cache with credentials this fork does not have. This fork
 +    # publishes with cargo. Re-enable by removing this `if`.
 +    if: false
-     timeout-minutes: 30
+     timeout-minutes: 90
      strategy:
        fail-fast: false
-@@ -351,13 +374,20 @@ jobs:
+@@ -368,13 +386,20 @@ jobs:
            # that the Bazel test job uses.
            - os: ubuntu-24.04
              target: x86_64-unknown-linux-gnu
@@ -108,18 +111,19 @@ index 9bf3ebf548..14ef02b21a 100644
      runs-on: ${{ matrix.runs_on || matrix.os }}
      name: Bazel clippy on ${{ matrix.os }} for ${{ matrix.target }}
      environment:
-@@ -451,6 +481,10 @@ jobs:
-         uses: ./.github/actions/check-clean-worktree
- 
+@@ -464,7 +489,10 @@ jobs:
    verify-release-build:
+     permissions:
+       contents: read
+-      id-token: write
 +    # Disabled on this fork. Bazel is upstream's build system and uses a
 +    # remote cache with credentials this fork does not have. This fork
 +    # publishes with cargo. Re-enable by removing this `if`.
 +    if: false
-     timeout-minutes: 30
+     timeout-minutes: 90
      strategy:
        fail-fast: false
-@@ -458,13 +492,20 @@ jobs:
+@@ -472,13 +500,20 @@ jobs:
          include:
            - os: ubuntu-24.04
              target: x86_64-unknown-linux-gnu
@@ -148,14 +152,13 @@ index 9bf3ebf548..14ef02b21a 100644
      name: Verify release build on ${{ matrix.os }} for ${{ matrix.target }}
      environment:
 diff --git a/.github/workflows/blocking-ci.yml b/.github/workflows/blocking-ci.yml
-index c6f00555a3..13cc7220cf 100644
+index d42281ecc..b434b8003 100644
 --- a/.github/workflows/blocking-ci.yml
 +++ b/.github/workflows/blocking-ci.yml
-@@ -51,13 +51,19 @@ jobs:
+@@ -71,12 +71,19 @@ jobs:
      # required check can appear successful instead of reporting the failure.
      if: ${{ always() }}
      needs:
--      - bazel
 +      # `bazel` is disabled on this fork. Bazel is upstream's build system
 +      # and uses a remote cache with credentials this fork does not have.
 +      # The fork publishes with cargo. Add `bazel` back here when those
@@ -174,12 +177,12 @@ index c6f00555a3..13cc7220cf 100644
      steps:
        # Keep the helper on the same combined revision as the child workflows so
 diff --git a/.github/workflows/postmerge-ci.yml b/.github/workflows/postmerge-ci.yml
-index ac2b46d1db..0aa6469eb4 100644
+index f67744738..2b912a8ea 100644
 --- a/.github/workflows/postmerge-ci.yml
 +++ b/.github/workflows/postmerge-ci.yml
-@@ -11,11 +11,22 @@ jobs:
-   # workflow_dispatch trigger so maintainers can rerun flaky suites directly.
-   rust-ci-full:
+@@ -14,6 +14,9 @@ jobs:
+       contents: read
+       id-token: write
      name: rust-ci-full
 +    permissions:
 +      contents: read
@@ -187,7 +190,9 @@ index ac2b46d1db..0aa6469eb4 100644
      uses: ./.github/workflows/rust-ci-full.yml
      secrets: inherit
  
-   v8-canary:
+@@ -22,6 +25,14 @@ jobs:
+       contents: read
+       id-token: write
      name: v8-canary
 +    # v8-canary.yml looks up earlier runs of itself, so its build job asks for
 +    # `actions: read`. A nested workflow can never hold more than its caller,
@@ -201,24 +206,14 @@ index ac2b46d1db..0aa6469eb4 100644
      secrets: inherit
  
 diff --git a/.github/workflows/rust-ci-full.yml b/.github/workflows/rust-ci-full.yml
-index 188f94ef45..7faa8a8132 100644
+index 568cb68a1..dbdb28591 100644
 --- a/.github/workflows/rust-ci-full.yml
 +++ b/.github/workflows/rust-ci-full.yml
-@@ -51,8 +51,8 @@ jobs:
-     name: Argument comment lint package
-     runs-on: ubuntu-24.04
-     env:
--      CARGO_DYLINT_VERSION: 6.1.0
--      DYLINT_LINK_VERSION: 6.1.0
-+      CARGO_DYLINT_VERSION: 6.3.2
-+      DYLINT_LINK_VERSION: 6.3.2
-     steps:
-       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-         with:
-@@ -90,6 +90,12 @@ jobs:
-           RUST_MIN_STACK: "8388608" # 8 MiB
- 
+@@ -96,7 +96,12 @@ jobs:
    argument_comment_lint_prebuilt:
+     permissions:
+       contents: read
+-      id-token: write
 +    # Disabled on this fork. This job runs the lint through Bazel, which is
 +    # upstream's build and uses a remote cache with credentials this fork
 +    # does not have. The macOS leg also needs paid runners and the Windows
@@ -227,8 +222,8 @@ index 188f94ef45..7faa8a8132 100644
 +    if: false
      name: Argument comment lint - ${{ matrix.name }}
      runs-on: ${{ matrix.runs_on || matrix.runner }}
-     timeout-minutes: 30
-@@ -102,13 +108,20 @@ jobs:
+     timeout-minutes: 120
+@@ -109,13 +114,20 @@ jobs:
          include:
            - name: Linux
              runner: ubuntu-24.04
@@ -256,90 +251,118 @@ index 188f94ef45..7faa8a8132 100644
      steps:
        - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
          with:
-@@ -121,6 +134,11 @@ jobs:
- 
+@@ -128,13 +140,16 @@ jobs:
    # --- CI to validate on different os/targets --------------------------------
-   lint_build:
-+    # Disabled on this fork. The Linux and Windows legs ask for the private
-+    # runner group `<repo>-runners`, which is upstream's and does not exist
-+    # here, and the macOS legs need paid runners. Remove this `if` to restore
-+    # the job.
+   cargo_voice_inputs:
+     name: Cargo voice inputs - ${{ matrix.target }}
++    # Disabled on this fork: all consumers are disabled and this matrix
++    # includes upstream-only private Windows runners. The results gate
++    # accepts `skipped`; re-enable with its dependent jobs.
 +    if: false
-     name: Lint/Build — ${{ matrix.runner }} - ${{ matrix.target }}${{ matrix.profile == 'release' && ' (release)' || '' }}
-     runs-on: ${{ matrix.runs_on || matrix.runner }}
-     timeout-minutes: 30
-@@ -428,6 +446,10 @@ jobs:
+     runs-on: ${{ matrix.runner }}
+     environment:
+       name: bazel
+       deployment: false
+     permissions:
+       contents: read
+-      id-token: write
+     timeout-minutes: 120
+     strategy:
+       fail-fast: false
+@@ -162,7 +177,10 @@ jobs:
+ 
+   lint_build:
+     needs: cargo_voice_inputs
+-    if: &lint_build_if ${{ !cancelled() }}
++    # Disabled on this fork. Its matrix uses paid macOS runners and
++    # upstream-only private Linux/Windows runner groups. Re-enable by
++    # removing this `if` and restoring the public runner matrix.
++    if: &lint_build_if false
+     name: &lint_build_name Lint/Build — ${{ matrix.runner }} - ${{ matrix.target }}${{ matrix.profile == 'release' && ' (release)' || '' }}
+     runs-on: &lint_build_runner ${{ matrix.runs_on || matrix.runner }}
+     timeout-minutes: &lint_build_timeout 30
+@@ -452,6 +470,8 @@ jobs:
            key: apt-${{ matrix.runner }}-${{ matrix.target }}-v1
  
+   lint_build_musl:
++    # Disabled on this fork: its musl matrix uses upstream-only private
++    # Linux runner groups. The results gate accepts `skipped` for this job.
+     if: *lint_build_if
+     name: *lint_build_name
+     runs-on: *lint_build_runner
+@@ -490,7 +510,9 @@ jobs:
+ 
    tests_macos_aarch64:
-+    # Disabled on this fork: this leg needs paid GitHub runners and the
-+    # account spending limit stops it from starting. The `results` gate below
-+    # accepts `skipped` for it. Remove this `if` to restore it.
+     needs: cargo_voice_inputs
+-    if: ${{ !cancelled() }}
++    # Disabled on this fork: this test leg requires paid macOS runners.
++    # The results gate accepts `skipped` for it. Remove this `if` to restore it.
 +    if: false
      name: Tests — macos-15-xlarge - aarch64-apple-darwin
      uses: ./.github/workflows/rust-ci-full-nextest-platform.yml
      with:
-@@ -439,6 +461,11 @@ jobs:
-     secrets: inherit
+@@ -503,7 +525,9 @@ jobs:
  
    tests_linux_x64_remote:
-+    # Disabled on this fork. This leg asks for the private runner group
-+    # `<repo>-runners`, which is upstream's and does not exist here.
-+    # The `results` gate accepts `skipped` for it. Remove this `if` to
-+    # restore it.
+     needs: cargo_voice_inputs
+-    if: ${{ !cancelled() }}
++    # Disabled on this fork: this test leg requires the upstream-only private remote Linux runner.
++    # The results gate accepts `skipped` for it. Remove this `if` to restore it.
 +    if: false
      name: Tests — ubuntu-24.04 - x86_64-unknown-linux-gnu (remote)
      uses: ./.github/workflows/rust-ci-full-nextest-platform.yml
      with:
-@@ -453,6 +480,11 @@ jobs:
-     secrets: inherit
+@@ -519,7 +543,9 @@ jobs:
  
    tests_linux_arm64:
-+    # Disabled on this fork. This leg asks for the private runner group
-+    # `<repo>-runners`, which is upstream's and does not exist here.
-+    # The `results` gate accepts `skipped` for it. Remove this `if` to
-+    # restore it.
+     needs: cargo_voice_inputs
+-    if: ${{ !cancelled() }}
++    # Disabled on this fork: this test leg requires the upstream-only private Linux ARM runner.
++    # The results gate accepts `skipped` for it. Remove this `if` to restore it.
 +    if: false
      name: Tests — ubuntu-24.04-arm - aarch64-unknown-linux-gnu
      uses: ./.github/workflows/rust-ci-full-nextest-platform.yml
      with:
-@@ -466,6 +498,11 @@ jobs:
-     secrets: inherit
+@@ -534,7 +560,9 @@ jobs:
  
    tests_windows_x64:
-+    # Disabled on this fork: this leg requires the upstream-only private
-+    # runner group `<repo>-runners`, so it cannot be scheduled here.
-+    # The `results` gate below accepts `skipped` for it. Remove this `if` to
-+    # restore it.
+     needs: cargo_voice_inputs
+-    if: ${{ !cancelled() }}
++    # Disabled on this fork: this test leg requires the upstream-only private Windows x64 runner.
++    # The results gate accepts `skipped` for it. Remove this `if` to restore it.
 +    if: false
      name: Tests — windows-x64 - x86_64-pc-windows-msvc
      uses: ./.github/workflows/rust-ci-full-nextest-platform.yml
      with:
-@@ -479,6 +516,11 @@ jobs:
-     secrets: inherit
+@@ -549,7 +577,9 @@ jobs:
  
    tests_windows_arm64:
-+    # Disabled on this fork: this leg and its archive leg require the
-+    # upstream-only private runner group `<repo>-runners`, so they cannot
-+    # be scheduled here. The `results` gate below accepts `skipped` for it.
-+    # Remove this `if` to restore it.
+     needs: cargo_voice_inputs
+-    if: ${{ !cancelled() }}
++    # Disabled on this fork: this test leg requires the upstream-only private Windows ARM runner.
++    # The results gate accepts `skipped` for it. Remove this `if` to restore it.
 +    if: false
      name: Tests — windows-arm64 - aarch64-pc-windows-msvc
      uses: ./.github/workflows/rust-ci-full-nextest-platform.yml
      with:
-@@ -528,15 +570,21 @@ jobs:
+@@ -602,17 +632,24 @@ jobs:
            echo "test winx64: ${{ needs.tests_windows_x64.result }}"
            echo "test winarm: ${{ needs.tests_windows_arm64.result }}"
            [[ '${{ needs.argument_comment_lint_package.result }}' == 'success' ]] || { echo 'argument_comment_lint_package failed'; exit 1; }
 -          [[ '${{ needs.argument_comment_lint_prebuilt.result }}' == 'success' ]] || { echo 'argument_comment_lint_prebuilt failed'; exit 1; }
            [[ '${{ needs.general.result }}' == 'success' ]] || { echo 'general failed'; exit 1; }
            [[ '${{ needs.cargo_shear.result }}' == 'success' ]] || { echo 'cargo_shear failed'; exit 1; }
+-          [[ '${{ needs.cargo_voice_inputs.result }}' == 'success' ]] || { echo 'cargo_voice_inputs failed'; exit 1; }
 -          [[ '${{ needs.lint_build.result }}' == 'success' ]] || { echo 'lint_build failed'; exit 1; }
+-          [[ '${{ needs.lint_build_musl.result }}' == 'success' ]] || { echo 'lint_build_musl failed'; exit 1; }
 -          [[ '${{ needs.tests_macos_aarch64.result }}' == 'success' ]] || { echo 'tests_macos_aarch64 failed'; exit 1; }
 -          [[ '${{ needs.tests_linux_x64_remote.result }}' == 'success' ]] || { echo 'tests_linux_x64_remote failed'; exit 1; }
 -          [[ '${{ needs.tests_linux_arm64.result }}' == 'success' ]] || { echo 'tests_linux_arm64 failed'; exit 1; }
 -          [[ '${{ needs.tests_windows_x64.result }}' == 'success' ]] || { echo 'tests_windows_x64 failed'; exit 1; }
 -          [[ '${{ needs.tests_windows_arm64.result }}' == 'success' ]] || { echo 'tests_windows_arm64 failed'; exit 1; }
++          # Voice inputs and the musl build are disabled with the fork-only runner overlay.
++          [[ '${{ needs.cargo_voice_inputs.result }}' == 'success' || '${{ needs.cargo_voice_inputs.result }}' == 'skipped' ]] || { echo 'cargo_voice_inputs failed'; exit 1; }
++          [[ '${{ needs.lint_build_musl.result }}' == 'success' || '${{ needs.lint_build_musl.result }}' == 'skipped' ]] || { echo 'lint_build_musl failed'; exit 1; }
 +          # The prebuilt lint runs through Bazel and is disabled on this fork.
 +          # lint_build and the test legs are disabled because they ask for the
 +          # private runner group `<repo>-runners` or for paid macOS runners.
@@ -357,32 +380,22 @@ index 188f94ef45..7faa8a8132 100644
        - name: sccache summary note
          if: always()
 diff --git a/.github/workflows/rust-ci.yml b/.github/workflows/rust-ci.yml
-index 48bee976c9..cc55215a77 100644
+index dca9b7a0a..30e25a0af 100644
 --- a/.github/workflows/rust-ci.yml
 +++ b/.github/workflows/rust-ci.yml
-@@ -112,8 +112,8 @@ jobs:
-     needs: changed
-     if: ${{ needs.changed.outputs.argument_comment_lint_package == 'true' }}
-     env:
--      CARGO_DYLINT_VERSION: 6.1.0
--      DYLINT_LINK_VERSION: 6.1.0
-+      CARGO_DYLINT_VERSION: 6.3.2
-+      DYLINT_LINK_VERSION: 6.3.2
-     steps:
-       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-         with:
-@@ -162,6 +162,10 @@ jobs:
-         uses: ./.github/actions/check-clean-worktree
- 
+@@ -168,7 +168,10 @@ jobs:
    argument_comment_lint_prebuilt:
+     permissions:
+       contents: read
+-      id-token: write
 +    # Disabled on this fork. Bazel is upstream's build system and uses a
 +    # remote cache with credentials this fork does not have. This fork
 +    # publishes with cargo. Re-enable by removing this `if`.
 +    if: false
      name: Argument comment lint - ${{ matrix.name }}
-     runs-on: ${{ matrix.runs_on || matrix.runner }}
-     timeout-minutes: ${{ matrix.timeout_minutes }}
-@@ -176,15 +180,22 @@ jobs:
+     # Keep this Bazel job advisory until the public build and cache rollout is verified.
+     continue-on-error: true
+@@ -185,15 +188,22 @@ jobs:
            - name: Linux
              runner: ubuntu-24.04
              timeout_minutes: 30
@@ -414,13 +427,11 @@ index 48bee976c9..cc55215a77 100644
      steps:
        - name: Check whether argument comment lint should run
          id: argument_comment_lint_gate
-@@ -248,9 +259,10 @@ jobs:
+@@ -256,7 +266,10 @@ jobs:
              [[ '${{ needs.argument_comment_lint_package.result }}' == 'success' ]] || { echo 'argument_comment_lint_package failed'; exit 1; }
            fi
  
--          if [[ "${NEEDS_CHANGED_OUTPUTS_ARGUMENT_COMMENT_LINT}" == 'true' || "${NEEDS_CHANGED_OUTPUTS_WORKFLOWS}" == 'true' ]]; then
--            [[ '${{ needs.argument_comment_lint_prebuilt.result }}' == 'success' ]] || { echo 'argument_comment_lint_prebuilt failed'; exit 1; }
--          fi
+-          # The Bazel-backed argument-comment lint job is temporarily advisory.
 +          # The Bazel prebuilt lint job is disabled on this fork. Bazel is
 +          # upstream's build and needs a remote cache with credentials.
 +          # Re-enable by removing that job's `if`, then require success
@@ -429,19 +440,10 @@ index 48bee976c9..cc55215a77 100644
            if [[ "${NEEDS_CHANGED_OUTPUTS_CODEX}" == 'true' || "${NEEDS_CHANGED_OUTPUTS_WORKFLOWS}" == 'true' ]]; then
              [[ '${{ needs.general.result }}' == 'success' ]] || { echo 'general failed'; exit 1; }
 diff --git a/.github/workflows/rust-release-argument-comment-lint.yml b/.github/workflows/rust-release-argument-comment-lint.yml
-index d49f896648..af73a5ee9d 100644
+index a0fdd9170..7e90716c5 100644
 --- a/.github/workflows/rust-release-argument-comment-lint.yml
 +++ b/.github/workflows/rust-release-argument-comment-lint.yml
-@@ -25,19 +25,25 @@ jobs:
-     runs-on: ${{ matrix.runs_on || matrix.runner }}
-     timeout-minutes: 60
-     env:
--      CARGO_DYLINT_VERSION: 6.1.0
--      DYLINT_LINK_VERSION: 6.1.0
-+      CARGO_DYLINT_VERSION: 6.3.2
-+      DYLINT_LINK_VERSION: 6.3.2
- 
-     strategy:
+@@ -32,12 +32,18 @@ jobs:
        fail-fast: false
        matrix:
          include:
@@ -499,10 +501,10 @@ index d49f896648..af73a5ee9d 100644
      steps:
        - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 diff --git a/.github/workflows/sdk.yml b/.github/workflows/sdk.yml
-index 8a764dbf03..36f067e485 100644
+index 0b4dfd4dd..9f8ce0460 100644
 --- a/.github/workflows/sdk.yml
 +++ b/.github/workflows/sdk.yml
-@@ -5,9 +5,7 @@ on:
+@@ -9,9 +9,7 @@ env:
  
  jobs:
    python-sdk-installation:
@@ -513,33 +515,34 @@ index 8a764dbf03..36f067e485 100644
      timeout-minutes: 10
      steps:
        - name: Checkout repository
-@@ -36,10 +34,17 @@ jobs:
-             '
+@@ -41,14 +39,14 @@ jobs:
  
    sdks:
+     permissions:
+-      contents: read
+-      id-token: write
+-    # Keep the Bazel CLI build advisory until the public build and cache rollout is verified.
+-    continue-on-error: true
 -    runs-on:
 -      group: ${{ github.event.repository.name }}-runners
 -      labels: ${{ github.event.repository.name }}-linux-x64
--    timeout-minutes: 20
-+    # Disabled on this fork. This job builds //codex-rs/cli:codex and
-+    # //codex-rs/code-mode-host:codex-code-mode-host with Bazel. Bazel is
-+    # upstream's build system and is off on this fork; the fork publishes
-+    # with cargo. Re-enable by removing this `if`, and add `sdk` back to
-+    # the `CI required` needs list in blocking-ci.yml.
+-    timeout-minutes: 90
++     contents: read
++    # Disabled on this fork. This job builds the Bazel CLI artifacts;
++    # Bazel is upstream's build system and is not used by this fork.
++    # Re-enable by removing this `if` and adding `sdk` to the blocking gate.
 +    if: false
 +    runs-on: ubuntu-24.04
-+    # This fork has no upstream remote cache and no upstream runners, so a
-+    # cold Linux run needs more than the upstream 20 minutes. Restore 20
-+    # when that cache or those runners are available.
++    # Restore the standard timeout if the upstream remote cache becomes available.
 +    timeout-minutes: 45
      environment:
        name: bazel
        deployment: false
 diff --git a/.github/workflows/v8-canary.yml b/.github/workflows/v8-canary.yml
-index 65eca0493b..ad9995a5a5 100644
+index 837ac0b40..3a90b94b1 100644
 --- a/.github/workflows/v8-canary.yml
 +++ b/.github/workflows/v8-canary.yml
-@@ -109,30 +109,40 @@ jobs:
+@@ -114,30 +114,40 @@ jobs:
              sandbox: true
              target: aarch64-unknown-linux-gnu
              variant: ptrcomp-sandbox

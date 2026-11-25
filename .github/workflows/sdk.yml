@@ -3,6 +3,10 @@ name: sdk
 on:
   workflow_call:
 
+env:
+  CODEX_BAZEL_GCS_BUCKET: ${{ secrets.CODEX_BAZEL_GCS_BUCKET }}
+  CODEX_BAZEL_GCS_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.CODEX_BAZEL_GCS_WORKLOAD_IDENTITY_PROVIDER }}
+
 jobs:
   python-sdk-installation:
     runs-on: ubuntu-24.04
@@ -34,16 +38,14 @@ jobs:
             '
 
   sdks:
-    # Disabled on this fork. This job builds //codex-rs/cli:codex and
-    # //codex-rs/code-mode-host:codex-code-mode-host with Bazel. Bazel is
-    # upstream's build system and is off on this fork; the fork publishes
-    # with cargo. Re-enable by removing this `if`, and add `sdk` back to
-    # the `CI required` needs list in blocking-ci.yml.
+    permissions:
+     contents: read
+    # Disabled on this fork. This job builds the Bazel CLI artifacts;
+    # Bazel is upstream's build system and is not used by this fork.
+    # Re-enable by removing this `if` and adding `sdk` to the blocking gate.
     if: false
     runs-on: ubuntu-24.04
-    # This fork has no upstream remote cache and no upstream runners, so a
-    # cold Linux run needs more than the upstream 20 minutes. Restore 20
-    # when that cache or those runners are available.
+    # Restore the standard timeout if the upstream remote cache becomes available.
     timeout-minutes: 45
     environment:
       name: bazel
@@ -81,13 +83,11 @@ jobs:
 
       - name: Build codex and the code-mode host with Bazel
         id: build_bazel
-        env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
         shell: bash
         run: |
           set -euo pipefail
           # Use the shared CI wrapper so fork PRs fall back cleanly when
-          # BuildBuddy credentials are unavailable. This workflow needs the
+          # This workflow needs the
           # built binaries on disk afterwards, so ask the wrapper to override
           # CI's default remote_download_minimal behavior.
           ./.github/scripts/run-bazel-ci.sh \

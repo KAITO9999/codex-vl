@@ -38,6 +38,7 @@ import json
 import os
 import platform
 import subprocess
+import shutil
 import tarfile
 import tempfile
 import time
@@ -60,10 +61,11 @@ def host_target() -> str:
 
 
 def fake_binary(label: str) -> bytes:
-    script = f"""#!/bin/sh
+    shell = shutil.which("sh") or "/bin/sh"
+    script = f"""#!{shell}
 case "$1" in
-  --version) printf 'codex-vl {label}\\n' ;;
-  *) printf 'fake {label} payload\\n' ;;
+  --version) echo 'codex-vl {label}' ;;
+  *) echo 'fake {label} payload' ;;
 esac
 exit 0
 """
@@ -71,11 +73,57 @@ exit 0
 
 
 def helper_binary() -> bytes:
-    return b"#!/bin/sh\nexit 0\n"
+    shell = shutil.which("sh") or "/bin/sh"
+    return f"#!{shell}\nexit 0\n".encode()
 
 
 class InstallerSuite(unittest.TestCase):
     """Each test builds its own assets and runs the real install.sh."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        prefix = os.environ.get("PREFIX")
+        if not prefix:
+            cls._tool_tmp = None
+            cls._test_path = "/usr/bin:/bin"
+            return
+
+        # Build an isolated Termux tool PATH without installed Codex commands.
+        # Most tests simulate Linux-musl; the Android test prepends its own uname.
+        cls._tool_tmp = tempfile.TemporaryDirectory(prefix="codexvl-test-tools.")
+        tool_dir = Path(cls._tool_tmp.name)
+        excluded = {"codex", "codex-vl", "codex-vl-exec", "codex-code-mode-host",
+                    "uname", "node", "npm", "npx"}
+        for entry in (Path(prefix) / "bin").iterdir():
+            if entry.name in excluded or entry.name.startswith("codex-"):
+                continue
+            if entry.is_file() or entry.is_symlink():
+                try:
+                    (tool_dir / entry.name).symlink_to(entry)
+                except FileExistsError:
+                    pass
+
+        machine = platform.machine().lower()
+        arch = "x86_64" if machine in ("x86_64", "amd64") else "aarch64"
+        uname = tool_dir / "uname"
+        uname.write_text(
+            "#!/bin/sh\n"
+            'case "$1" in\n'
+            '  -s) echo Linux ;;\n'
+            '  -o) echo GNU/Linux ;;\n'
+            f'  -m) echo {arch} ;;\n'
+            '  *) echo Linux ;;\n'
+            "esac\n"
+        )
+        uname.chmod(0o755)
+        cls._test_path = f"{tool_dir}:/system/bin:/usr/bin:/bin"
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        if getattr(cls, "_tool_tmp", None) is not None:
+            cls._tool_tmp.cleanup()
+        super().tearDownClass()
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory(prefix="codexvl-install-test.")
@@ -162,7 +210,7 @@ class InstallerSuite(unittest.TestCase):
         env["CODEX_NON_INTERACTIVE"] = "1"
         # A fixed minimal PATH keeps the host user's own commands (for
         # example a real ~/.local/bin/codex-vl) out of the conflict scan.
-        env["PATH"] = "/usr/bin:/bin"
+        env["PATH"] = self._test_path
         return env
 
     def run_installer(
@@ -221,6 +269,16 @@ class InstallerSuite(unittest.TestCase):
         return output.stdout.strip()
 
     # ---- ownership of the visible command --------------------------------
+
+    def test_installer_never_uninstalls_official_codex(self) -> None:
+        source = INSTALLER.read_text()
+        for forbidden in (
+            "handle_conflicting_install",
+            "npm uninstall -g @openai/codex",
+            "bun remove -g @openai/codex",
+            "brew uninstall --cask codex",
+        ):
+            self.assertNotIn(forbidden, source)
 
     def test_install_creates_owned_link_and_release(self) -> None:
         self.install_ok()
@@ -468,7 +526,13 @@ class InstallerSuite(unittest.TestCase):
         self.assertFalse(self.release_dir().exists())
 
     def test_manifest_target_mismatch_rejected(self) -> None:
-        self.build_assets(manifest_target="aarch64-unknown-linux-musl")
+        # Choose a target that differs from this host on both x86_64 and arm64.
+        wrong_target = (
+            "x86_64-unknown-linux-musl"
+            if host_target() == "aarch64-unknown-linux-musl"
+            else "aarch64-unknown-linux-musl"
+        )
+        self.build_assets(manifest_target=wrong_target)
         result = self.run_installer(
             "--from-dir",
             str(self.assets),
@@ -635,6 +699,10 @@ embedded_package_digest() {{
                     continue
             time.sleep(0.05)
 
+    @unittest.skipIf(
+        os.environ.get("PREFIX"),
+        "Termux shell/exec behavior differs; the lock-race integration runs in Linux CI.",
+    )
     def test_install_blocked_until_uninstall_releases_stable_lock(self) -> None:
         # Audit counterexample: uninstall acquired the lock inside the tree
         # it then removed, so a concurrent install recreated the path, locked
@@ -651,15 +719,23 @@ embedded_package_digest() {{
         release_flag = Path(self._tmp.name) / "rm-release"
         standalone = str(self.standalone_root)
         wrapper = wrapper_dir / "rm"
+        shell = shutil.which("sh") or "/bin/sh"
+        real_rm = shutil.which("rm") or "/bin/rm"
         wrapper.write_text(
-            "#!/bin/sh\n"
-            f'if [ "$#" -eq 2 ] && [ "$1" = "-rf" ] && [ "$2" = "{standalone}" ]; then\n'
-            '  /bin/rm -rf "$2"\n'
-            f'  : > "{sentinel}"\n'
-            f'  while [ ! -e "{release_flag}" ]; do sleep 0.2; done\n'
-            "  exit 0\n"
-            "fi\n"
-            'exec /bin/rm "$@"\n'
+            f"#!{shell}\\n"
+            'target=""\\n'
+            f'if [ "$#" -eq 2 ] && [ "$1" = "-rf" ] && [ "$2" = "{standalone}" ]; then\\n'
+            '  target="$2"\\n'
+            f'elif [ "$#" -eq 3 ] && [ "$1" = "-rf" ] && [ "$2" = "--" ] && [ "$3" = "{standalone}" ]; then\\n'
+            '  target="$3"\\n'
+            "fi\\n"
+            'if [ -n "$target" ]; then\\n'
+            f'  "{real_rm}" -rf -- "$target"\\n'
+            f'  : > "{sentinel}"\\n'
+            f'  while [ ! -e "{release_flag}" ]; do sleep 0.2; done\\n'
+            "  exit 0\\n"
+            "fi\\n"
+            f'exec "{real_rm}" "$@"\\n'
         )
         wrapper.chmod(0o755)
 
